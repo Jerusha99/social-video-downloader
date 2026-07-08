@@ -368,7 +368,18 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const YT_WORKER_URL = process.env.YT_WORKER_URL || 'https://youtubedown.jerushasharon1999.workers.dev/';
+const CF_WORKER_URL = process.env.CF_WORKER_URL || process.env.YT_WORKER_URL || 'https://youtubedown.jerushasharon1999.workers.dev/';
+
+async function fetchViaWorker(url, platform) {
+    try {
+        const resp = await axios.post(CF_WORKER_URL, { url }, { timeout: 15000 });
+        if (resp.data.success) return resp.data.data;
+        throw new Error(resp.data.error || 'Worker failed');
+    } catch (e) {
+        if (e.response?.data?.error) throw new Error(e.response.data.error);
+        throw e;
+    }
+}
 
 app.post('/api/fetch', async (req, res) => {
     const { url } = req.body;
@@ -379,19 +390,16 @@ app.post('/api/fetch', async (req, res) => {
         let result;
         switch (platform) {
             case 'youtube':
-                try {
-                    const ytResp = await axios.post(YT_WORKER_URL, { url }, { timeout: 15000 });
-                    if (ytResp.data.success) { result = ytResp.data.data; break; }
-                    throw new Error(ytResp.data.error || 'YouTube worker failed');
-                } catch (e) {
-                    if (e.response?.data?.error) throw new Error(e.response.data.error);
-                    result = await fetchYouTube(url);
-                }
+                try { result = await fetchViaWorker(url, 'youtube'); } catch (e) { result = await fetchYouTube(url); }
                 break;
             case 'tiktok': result = await fetchTikTok(url); break;
-            case 'facebook': result = await fetchFacebook(url); break;
+            case 'facebook':
+                try { result = await fetchViaWorker(url, 'facebook'); } catch (e) { result = await fetchFacebook(url); }
+                break;
             case 'twitter': result = await fetchTwitter(url); break;
-            case 'instagram': result = await fetchInstagram(url); break;
+            case 'instagram':
+                try { result = await fetchViaWorker(url, 'instagram'); } catch (e) { result = await fetchInstagram(url); }
+                break;
             default: throw new Error('Unsupported platform');
         }
         if (!result.formats || result.formats.length === 0) { try { result = await fetchWithYtDlp(url, platform); } catch (e2) { /* ignore */ } }
