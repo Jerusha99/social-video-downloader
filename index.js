@@ -132,24 +132,37 @@ async function fetchYouTube(url) {
         } catch (e) { continue; }
     }
 
-    // Method 3: InnerTube TVHTML5_SIMPLY_EMBEDDED_PLAYER (no PoToken needed for embeddable)
-    try {
-        const payload = {
-            videoId,
-            context: {
-                client: { clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0', clientScreen: 'EMBED', hl: 'en', gl: 'US' },
-                thirdParty: { embedUrl: 'https://www.youtube.com/embed/' + videoId },
-            },
-            contentCheckOk: true, racyCheckOk: true,
-        };
-        const resp = await axios.post('https://www.youtube.com/youtubei/v1/player?key=' + YT_API_KEY, payload, {
-            httpsAgent, headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent('desktop'), 'Origin': 'https://www.youtube.com', 'Referer': 'https://www.youtube.com/watch?v=' + videoId, 'X-Youtube-Client-Name': '85', 'X-Youtube-Client-Version': '2.0' }, timeout: 8000,
-        });
-        const data = resp.data;
-        if (data && data.playabilityStatus?.status === 'OK') {
+    // Method 3: InnerTube API with multiple clients (various API keys)
+    const innertubeClients = [
+        { name: 'ANDROID', version: '20.10.38', key: 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w', ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip', extra: { androidSdkVersion: 34, osName: 'Android', osVersion: '14' } },
+        { name: 'ANDROID_VR', version: '1.71.26', key: '', ua: 'Mozilla/5.0 (Linux; Android 12; Quest 3) AppleWebKit/537.36', extra: { androidSdkVersion: 32, osName: 'Android', osVersion: '12L', deviceMake: 'Oculus', deviceModel: 'Quest 3' } },
+        { name: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', version: '2.0', key: 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', ua: userAgent('desktop'), extra: { clientScreen: 'EMBED' } },
+        { name: 'TVHTML5', version: '7.20260114.12.00', key: 'AIzaSyDCU8hByM-4DrUqRUYnGn-3llEO78bcxq8', ua: userAgent('desktop'), extra: {} },
+        { name: 'ANDROID_MUSIC', version: '6.33.2', key: 'AIzaSyAOghZGza2MQSZkY_zfZ370N-PUdXEo8AI', ua: 'com.google.android.apps.youtube.music/6.33.2 (Linux; U; Android 14) gzip', extra: { androidSdkVersion: 34, osName: 'Android', osVersion: '14' } },
+        { name: 'WEB', version: '2.20240101.00.00', key: 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', ua: userAgent('desktop'), extra: {} },
+    ];
+    for (const client of innertubeClients) {
+        try {
+            const payload = {
+                videoId,
+                context: { client: { hl: 'en', gl: 'US', clientName: client.name, clientVersion: client.version, ...client.extra } },
+                contentCheckOk: true, racyCheckOk: true,
+            };
+            if (client.name === 'TVHTML5_SIMPLY_EMBEDDED_PLAYER') {
+                payload.context.thirdParty = { embedUrl: 'https://www.youtube.com/embed/' + videoId };
+            }
+            const apiKey = client.key || YT_API_KEY;
+            const headers = { 'Content-Type': 'application/json', 'User-Agent': client.ua };
+            if (apiKey) headers['X-Youtube-Client-Name'] = client.name;
+            const resp = await axios.post('https://www.youtube.com/youtubei/v1/player?key=' + apiKey, payload, {
+                httpsAgent, headers, timeout: 8000,
+            });
+            const data = resp.data;
+            if (!data || data.error || data.playabilityStatus?.status !== 'OK') continue;
             const videoDetails = data.videoDetails || {};
             const streamingData = data.streamingData || {};
             const allFormats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])];
+            if (allFormats.length === 0) continue;
             const formats = [];
             const seen = new Set();
             for (const f of allFormats) {
@@ -178,8 +191,8 @@ async function fetchYouTube(url) {
                 const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
                 return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4') };
             }
-        }
-    } catch (e) { /* fall through */ }
+        } catch (e) { continue; }
+    }
 
     throw new Error('Could not fetch YouTube video. It may be private or unavailable.');
 }
