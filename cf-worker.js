@@ -200,7 +200,44 @@ async function fetchInstagram(url) {
         } catch {}
     }
 
-    // Method 3: Scrape the page for metadata
+    // Method 3: Try downloadgram.app proxy (gets actual video URL)
+    try {
+        const resp = await fetch('https://api.downloadgram.app/media', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://downloadgram.app/',
+            },
+            body: 'url=' + encodeURIComponent('https://www.instagram.com/reel/' + shortcode + '/'),
+        });
+        if (resp.ok) {
+            const text = await resp.text();
+            // Extract HTML from response like: loader['style']['display']='none',document['getElementById']('div_download')['innerHTML']='...'
+            const htmlMatch = text.match(/innerHTML'\]='([^']*)'/);
+            if (htmlMatch) {
+                const html = htmlMatch[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+                // Extract download link
+                const linkMatch = html.match(/href="([^"]*cdn\.downloadgram\.app[^"]*)"/i);
+                const thumbMatch = html.match(/src="([^"]*cdn\.downloadgram\.app[^"]*)"/i);
+                const titleMatch = html.match(/alt="([^"]*)"/i);
+                if (linkMatch) {
+                    const videoUrl = linkMatch[1].replace(/&amp;/g, '&');
+                    const thumb = thumbMatch ? thumbMatch[1].replace(/&amp;/g, '&') : '';
+                    const title = titleMatch ? titleMatch[1] : 'Instagram Video';
+                    return {
+                        title: title.substring(0, 200),
+                        thumbnail: thumb,
+                        duration: '',
+                        platform: 'instagram',
+                        formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }],
+                    };
+                }
+            }
+        }
+    } catch {}
+
+    // Method 4: Scrape the page for metadata
     try {
         const resp = await fetch('https://www.instagram.com/p/' + shortcode + '/', {
             headers: {
