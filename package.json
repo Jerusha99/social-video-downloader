@@ -2,6 +2,7 @@
   "name": "socialsave-pro",
   "version": "1.0.0",
   "description": "SocialSave Pro - Download videos from YouTube, TikTok, Instagram, Facebook, Twitter, Vimeo, Dailymotion",
+  "main": "api/index.js",
   "scripts": {
     "dev": "node api-server/server.js"
   },
