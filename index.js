@@ -103,6 +103,50 @@ async function fetchYouTube(url) {
             }
         } catch (e) { continue; }
     }
+    // Fallback: scrape YouTube page directly
+    try {
+        const resp = await axios.get('https://www.youtube.com/watch?v=' + videoId, {
+            headers: { 'User-Agent': userAgent('desktop') },
+            timeout: 8000,
+        });
+        const html = resp.data;
+        const match = html.match(/ytInitialPlayerResponse\s*=\s*({.+?})\s*;\s*<\/script>/);
+        if (!match) throw new Error('No player response found');
+        const data = JSON.parse(match[1]);
+        const videoDetails = data.videoDetails || {};
+        const streamingData = data.streamingData || {};
+        const allFormats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])];
+        if (allFormats.length === 0) throw new Error('No formats found');
+        const formats = [];
+        const seen = new Set();
+        for (const f of allFormats) {
+            let streamUrl = f.url || '';
+            if (!streamUrl && f.cipher) {
+                const params = new URLSearchParams(f.cipher);
+                streamUrl = params.get('url') || '';
+                const sp = params.get('sp');
+                const s = params.get('s');
+                if (sp && s) streamUrl += '&' + sp + '=' + encodeURIComponent(s);
+            }
+            if (!streamUrl) continue;
+            const label = f.qualityLabel || f.quality || 'audio';
+            const mime = f.mimeType || '';
+            let ext = 'mp4';
+            if (mime) { const parts = mime.split('/'); ext = (parts[1] || 'mp4').split(';')[0]; }
+            const type = f.qualityLabel ? 'video' : 'audio';
+            const key = label + '_' + ext;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            formats.push({ url: streamUrl, label: type === 'video' ? label : label, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
+        }
+        if (formats.length > 0) {
+            formats.sort((a, b) => b.size - a.size);
+            const filtered = formats.filter(f => { const e = (f.format || '').toLowerCase(); return e === 'mp4' || e === 'mp3'; });
+            const thumbs = videoDetails.thumbnail?.thumbnails || [];
+            const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+            return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4') };
+        }
+    } catch (e) { /* fall through */ }
     throw new Error('Could not fetch YouTube video.');
 }
 
