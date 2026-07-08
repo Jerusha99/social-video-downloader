@@ -12,9 +12,15 @@
     "cheerio": "^1.2.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "localtunnel": "^2.0.2"
+    "localtunnel": "^2.0.2",
+    "ytdl-core": "^4.11.5"
   },
-  "keywords": ["video-downloader", "youtube", "tiktok", "instagram"],
+  "keywords": [
+    "video-downloader",
+    "youtube",
+    "tiktok",
+    "instagram"
+  ],
   "author": "Jerusha'Tech",
   "license": "MIT"
 }

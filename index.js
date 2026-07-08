@@ -5,8 +5,7 @@ const cheerio = require('cheerio');
 const https = require('https');
 const path = require('path');
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-let ytdl;
-try { ytdl = require('@distube/ytdl'); } catch (e) { /* optional */ }
+const ytdl = require('ytdl-core');
 
 const app = express();
 app.use(cors());
@@ -41,9 +40,28 @@ function extractYouTubeId(url) {
     return null;
 }
 
+function formatDuration(seconds) {
+    if (!seconds) return '';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m + ':' + s.toString().padStart(2, '0');
+}
+
+function detectPlatform(url) {
+    const u = url.toLowerCase();
+    if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
+    if (u.includes('tiktok.com')) return 'tiktok';
+    if (u.includes('facebook.com') || u.includes('fb.watch') || u.includes('fb.com')) return 'facebook';
+    if (u.includes('twitter.com') || u.includes('x.com')) return 'twitter';
+    if (u.includes('instagram.com') || u.includes('instagr.am')) return 'instagram';
+    return null;
+}
+
 async function fetchYouTube(url) {
     const videoId = extractYouTubeId(url);
     if (!videoId) throw new Error('Could not extract YouTube video ID.');
+
+    // Method 1: InnerTube API (fastest, works from most networks)
     const clients = [
         { name: 'ANDROID', version: '20.10.38', ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip' },
         { name: 'WEB', version: '2.20240101.00.00', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
@@ -52,24 +70,14 @@ async function fetchYouTube(url) {
         try {
             const payload = {
                 videoId,
-                context: {
-                    client: {
-                        hl: 'en', gl: 'US',
-                        clientName: client.name,
-                        clientVersion: client.version,
-                        ...(client.name === 'ANDROID' ? { androidSdkVersion: 34, osName: 'Android', osVersion: '14' } : {}),
-                    },
-                },
+                context: { client: { hl: 'en', gl: 'US', clientName: client.name, clientVersion: client.version, ...(client.name === 'ANDROID' ? { androidSdkVersion: 34, osName: 'Android', osVersion: '14' } : {}) } },
             };
-            const resp = await axios.post(`https://www.youtube.com/youtubei/v1/player?key=${YT_API_KEY}`, payload, {
-                httpsAgent,
-                headers: { 'Content-Type': 'application/json', 'User-Agent': client.ua },
-                timeout: 8000,
+            const resp = await axios.post('https://www.youtube.com/youtubei/v1/player?key=' + YT_API_KEY, payload, {
+                httpsAgent, headers: { 'Content-Type': 'application/json', 'User-Agent': client.ua }, timeout: 8000,
             });
             const data = resp.data;
             if (!data || data.error) continue;
-            const playability = data.playabilityStatus?.status;
-            if (playability && playability !== 'OK') continue;
+            if (data.playabilityStatus?.status && data.playabilityStatus.status !== 'OK') continue;
             const videoDetails = data.videoDetails || {};
             const streamingData = data.streamingData || {};
             const allFormats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])];
@@ -81,8 +89,7 @@ async function fetchYouTube(url) {
                 if (!streamUrl && f.cipher) {
                     const params = new URLSearchParams(f.cipher);
                     streamUrl = params.get('url') || '';
-                    const sp = params.get('sp');
-                    const s = params.get('s');
+                    const sp = params.get('sp'); const s = params.get('s');
                     if (sp && s) streamUrl += '&' + sp + '=' + encodeURIComponent(s);
                 }
                 if (!streamUrl) continue;
@@ -94,7 +101,7 @@ async function fetchYouTube(url) {
                 const key = label + '_' + ext;
                 if (seen.has(key)) continue;
                 seen.add(key);
-                formats.push({ url: streamUrl, label: type === 'video' ? label : label, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
+                formats.push({ url: streamUrl, label, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
             }
             if (formats.length > 0) {
                 formats.sort((a, b) => b.size - a.size);
@@ -105,106 +112,60 @@ async function fetchYouTube(url) {
             }
         } catch (e) { continue; }
     }
-    // Fallback: scrape YouTube page directly
+
+    // Method 2: @distube/ytdl
     try {
-        const resp = await axios.get('https://www.youtube.com/watch?v=' + videoId, {
-            headers: { 'User-Agent': userAgent('desktop') },
-            timeout: 8000,
-        });
-        const html = resp.data;
-        const match = html.match(/ytInitialPlayerResponse\s*=\s*({.+?})\s*;\s*<\/script>/);
-        if (!match) throw new Error('No player response found');
-        const data = JSON.parse(match[1]);
-        const videoDetails = data.videoDetails || {};
-        const streamingData = data.streamingData || {};
-        const allFormats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])];
-        if (allFormats.length === 0) throw new Error('No formats found');
-        const formats = [];
-        const seen = new Set();
-        for (const f of allFormats) {
-            let streamUrl = f.url || '';
-            if (!streamUrl && f.cipher) {
-                const params = new URLSearchParams(f.cipher);
-                streamUrl = params.get('url') || '';
-                const sp = params.get('sp');
-                const s = params.get('s');
-                if (sp && s) streamUrl += '&' + sp + '=' + encodeURIComponent(s);
+        const info = await ytdl.getInfo('https://www.youtube.com/watch?v=' + videoId);
+        if (info && info.formats && info.formats.length > 0) {
+            const formats = [];
+            const seen = new Set();
+            for (const f of info.formats) {
+                const ext = (f.container || 'mp4').toLowerCase();
+                if (ext !== 'mp4' && ext !== 'mp3') continue;
+                const label = f.qualityLabel || f.quality || (f.audioBitrate ? f.audioBitrate + 'kbps' : 'audio');
+                const type = f.hasVideo ? 'video' : 'audio';
+                const key = label + '_' + ext;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                formats.push({ url: f.url, label, format: ext, type, size: f.contentLength || 0 });
             }
-            if (!streamUrl) continue;
-            const label = f.qualityLabel || f.quality || 'audio';
-            const mime = f.mimeType || '';
-            let ext = 'mp4';
-            if (mime) { const parts = mime.split('/'); ext = (parts[1] || 'mp4').split(';')[0]; }
-            const type = f.qualityLabel ? 'video' : 'audio';
-            const key = label + '_' + ext;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            formats.push({ url: streamUrl, label: type === 'video' ? label : label, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
-        }
-        if (formats.length > 0) {
-            formats.sort((a, b) => b.size - a.size);
-            const filtered = formats.filter(f => { const e = (f.format || '').toLowerCase(); return e === 'mp4' || e === 'mp3'; });
-            const thumbs = videoDetails.thumbnail?.thumbnails || [];
-            const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
-            return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4') };
+            if (formats.length > 0) {
+                formats.sort((a, b) => b.size - a.size);
+                const filtered = formats.filter(f => f.format === 'mp4' || f.format === 'mp3');
+                const thumbs = info.videoDetails?.thumbnails || [];
+                const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+                return { title: info.videoDetails?.title || 'Untitled', thumbnail: thumb, duration: formatDuration(info.videoDetails?.lengthSeconds || 0), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats };
+            }
         }
     } catch (e) { /* fall through */ }
-    // ytdl-core fallback
-    if (ytdl) {
-        try {
-            const info = await ytdl.getInfo('https://www.youtube.com/watch?v=' + videoId);
-            if (info && info.formats && info.formats.length > 0) {
-                const formats = [];
-                const seen = new Set();
-                for (const f of info.formats) {
-                    const ext = (f.container || 'mp4').toLowerCase();
-                    if (ext !== 'mp4' && ext !== 'mp3') continue;
-                    const label = f.qualityLabel || f.quality || f.audioBitrate + 'kbps' || 'audio';
-                    const type = f.hasVideo ? 'video' : 'audio';
-                    const key = label + '_' + ext;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    formats.push({ url: f.url, label, format: ext, type, size: f.contentLength || 0 });
-                }
-                if (formats.length > 0) {
-                    formats.sort((a, b) => b.size - a.size);
-                    const filtered = formats.filter(f => f.format === 'mp4' || f.format === 'mp3');
-                    const thumb = info.videoDetails?.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || '';
-                    return { title: info.videoDetails?.title || 'Untitled', thumbnail: thumb, duration: formatDuration(info.videoDetails?.lengthSeconds || 0), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats };
-                }
-            }
-        } catch (e) { /* fall through */ }
-    }
-    throw new Error('Could not fetch YouTube video.');
+
+    throw new Error('Could not fetch YouTube video. It may be private or unavailable.');
 }
 
 async function fetchTikTok(url) {
     try {
         const form = new URLSearchParams({ url, count: 12, cursor: 0, hd: 1 });
         const resp = await axios.post('https://tikwm.com/api/', form.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': userAgent('mobile'), 'Accept': 'application/json' },
-            timeout: 8000,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': userAgent('mobile'), 'Accept': 'application/json' }, timeout: 8000,
         });
         const d = resp.data;
         if (d.code === 0 && d.data) {
-            const title = d.data.title || 'TikTok Video';
-            const thumb = ensureAbsoluteUrl(d.data.cover || '');
-            const music = d.data.music || '';
-            const duration = d.data.duration || 0;
             const formats = [];
             const playUrl = ensureAbsoluteUrl(d.data.play);
             if (playUrl) formats.push({ url: playUrl, label: 'Standard Quality', format: 'mp4', type: 'video', size: 0 });
             const hdUrl = ensureAbsoluteUrl(d.data.hdplay);
             if (hdUrl && hdUrl !== playUrl) formats.push({ url: hdUrl, label: 'HD Quality', format: 'mp4', type: 'video', size: 0 });
-            const musicUrl = ensureAbsoluteUrl(music);
+            const musicUrl = ensureAbsoluteUrl(d.data.music || '');
             if (musicUrl) formats.push({ url: musicUrl, label: 'Audio Only (MP3)', format: 'mp3', type: 'audio', size: 0 });
-            return { title, thumbnail: thumb, duration: formatDuration(duration), platform: 'tiktok', formats };
+            return { title: d.data.title || 'TikTok Video', thumbnail: ensureAbsoluteUrl(d.data.cover || ''), duration: formatDuration(d.data.duration || 0), platform: 'tiktok', formats };
         }
     } catch (e) { /* fall through */ }
-    throw new Error('Could not fetch TikTok video.');
+
+    throw new Error('Could not fetch TikTok video. It may be private or unavailable.');
 }
 
 async function fetchFacebook(url) {
+    // Method 1: Scrape mbasic.facebook.com
     try {
         let mobileUrl = url.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com').replace('fb.watch', 'mbasic.facebook.com/watch');
         if (!mobileUrl.includes('mbasic.facebook.com')) { const u = new URL(url); mobileUrl = 'https://mbasic.facebook.com' + u.pathname + u.search; }
@@ -223,10 +184,26 @@ async function fetchFacebook(url) {
         const thumb = $('meta[property="og:image"]').attr('content') || '';
         if (videoUrl) return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
     } catch (e) { /* fall through */ }
-    throw new Error('Could not fetch Facebook video.');
+
+    // Method 2: Graph API
+    try {
+        const resp = await axios.get('https://graph.facebook.com/v19.0/?id=' + encodeURIComponent(url) + '&fields=og_object{title,image,video}', {
+            headers: { 'User-Agent': userAgent('desktop') }, timeout: 8000,
+        });
+        const d = resp.data;
+        const og = d.og_object || {};
+        const title = og.title || 'Facebook Video';
+        const thumb = (og.image && og.image[0] && og.image[0].url) || '';
+        const videoSrc = (og.video && og.video.url) || '';
+        const formats = videoSrc ? [{ url: videoSrc, label: 'Video', format: 'mp4', type: 'video', size: 0 }] : [];
+        return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats };
+    } catch (e) { /* fall through */ }
+
+    throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
 }
 
 async function fetchTwitter(url) {
+    // Method 1: Syndication API
     try {
         const tweetId = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/i)?.[1];
         if (tweetId) {
@@ -250,10 +227,22 @@ async function fetchTwitter(url) {
             if (formats.length > 0) return { title, thumbnail: thumb, duration: '', platform: 'twitter', formats };
         }
     } catch (e) { /* fall through */ }
-    throw new Error('Could not fetch tweet media.');
+
+    // Method 2: fxtwitter.com
+    try {
+        const fxUrl = url.replace('twitter.com', 'fxtwitter.com').replace('x.com', 'fxtwitter.com');
+        const resp = await axios.get(fxUrl, {
+            headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'application/json' }, timeout: 8000,
+        });
+        const d = resp.data;
+        if (d && d.video && d.video.url) return { title: d.text || 'Tweet', thumbnail: d.avatar || '', duration: '', platform: 'twitter', formats: [{ url: d.video.url, label: 'Video', format: 'mp4', type: 'video', size: 0 }] };
+    } catch (e) { /* fall through */ }
+
+    throw new Error('Could not fetch tweet media. It may be deleted or protected.');
 }
 
 async function fetchInstagram(url) {
+    // Method 1: oEmbed API
     try {
         const resp = await axios.get('https://api.instagram.com/oembed?url=' + encodeURIComponent(url), {
             headers: { 'User-Agent': userAgent('instagram') }, timeout: 8000,
@@ -261,15 +250,56 @@ async function fetchInstagram(url) {
         const d = resp.data;
         return { title: d.title || 'Instagram Post', thumbnail: d.thumbnail_url || '', duration: '', platform: 'instagram', formats: [] };
     } catch (e) { /* fall through */ }
-    throw new Error('Could not fetch Instagram content.');
+
+    // Method 2: Scrape the page
+    try {
+        const resp = await axios.get(url, {
+            headers: { 'User-Agent': userAgent('instagram'), 'Accept': 'text/html,application/xhtml+xml' }, timeout: 8000,
+        });
+        const $ = cheerio.load(resp.data);
+        let videoUrl = '';
+        let thumb = $('meta[property="og:image"]').attr('content') || '';
+        let title = $('meta[property="og:title"]').attr('content') || 'Instagram Post';
+        const videoMeta = $('meta[property="og:video"]').attr('content') || '';
+        if (videoMeta) videoUrl = videoMeta;
+        const scripts = $('script[type="text/javascript"]').text();
+        const jsonMatch = scripts.match(/window\.__additionalDataLoaded\s*\([^,]+,\s*(\{.+?\})\)/s);
+        if (jsonMatch) {
+            try {
+                const data = JSON.parse(jsonMatch[1]);
+                const media = data.graphql?.shortcode_media || data.media || data.items?.[0];
+                if (media) { videoUrl = videoUrl || media.video_url || ''; thumb = thumb || media.display_url || ''; title = title || media.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post'; }
+            } catch (e) { /* ignore */ }
+        }
+        if (videoUrl) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [{ url: videoUrl, label: 'Video', format: 'mp4', type: 'video', size: 0 }] };
+    } catch (e) { /* fall through */ }
+
+    // Method 3: Imginn.com
+    try {
+        const shortcode = url.match(/instagram\.com\/p\/([^\/?#]+)/i);
+        if (shortcode) {
+            const resp = await axios.get('https://imginn.com/p/' + shortcode[1] + '/', {
+                headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'text/html,application/xhtml+xml' }, timeout: 8000,
+            });
+            const $$ = cheerio.load(resp.data);
+            const hasVideo = $$('video').length > 0 || $$('video source').length > 0;
+            const downloadLink = $$('a.download').attr('href') || '';
+            if (hasVideo && downloadLink) {
+                const igTitle = $$('meta[property="og:title"]').attr('content') || $$('h1').text().trim() || 'Instagram Video';
+                const igThumb = $$('meta[property="og:image"]').attr('content') || $$('img').first().attr('src') || '';
+                return { title: igTitle.substring(0, 200), thumbnail: igThumb, duration: '', platform: 'instagram', formats: [{ url: downloadLink, label: 'Video', format: 'mp4', type: 'video', size: 0 }] };
+            }
+        }
+    } catch (e) { /* fall through */ }
+
+    throw new Error('Could not fetch Instagram content. It may be private or unavailable.');
 }
 
 const { execSync } = require('child_process');
 
 function findYtDlp() {
     const candidates = [
-        'yt-dlp', 'yt-dlp.exe', path.join(__dirname, 'bin', 'yt-dlp.exe'),
-        path.join(__dirname, 'bin', 'yt-dlp'),
+        'yt-dlp', 'yt-dlp.exe', path.join(__dirname, 'bin', 'yt-dlp.exe'), path.join(__dirname, 'bin', 'yt-dlp'),
         path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'yt-dlp.exe'),
         path.join(process.env.TEMP || '', 'opencode', 'yt-dlp.exe'),
         path.join(process.env.TMP || '', 'opencode', 'yt-dlp.exe'),
@@ -283,7 +313,9 @@ async function fetchWithYtDlp(url, platform) {
     const ytdlp = findYtDlp();
     if (!ytdlp) throw new Error('yt-dlp not found');
     try {
-        const stdout = execSync('"' + ytdlp + '" --dump-json --no-download --no-warnings --quiet "' + url + '" 2>NUL', { encoding: 'utf-8', timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
+        const stdout = execSync('"' + ytdlp + '" --dump-json --no-download --no-warnings --quiet "' + url + '" 2>NUL', {
+            encoding: 'utf-8', timeout: 30000, maxBuffer: 10 * 1024 * 1024,
+        });
         const data = JSON.parse(stdout.trim().split('\n')[0]);
         if (!data) throw new Error('No data');
         const formats = [];
@@ -301,23 +333,6 @@ async function fetchWithYtDlp(url, platform) {
         formats.sort((a, b) => b.size - a.size);
         return { title: data.title || 'Untitled', thumbnail: data.thumbnail || '', duration: formatDuration(data.duration || 0), platform: platform || 'unknown', formats };
     } catch (e) { throw new Error('yt-dlp failed: ' + e.message); }
-}
-
-function formatDuration(seconds) {
-    if (!seconds) return '';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return m + ':' + s.toString().padStart(2, '0');
-}
-
-function detectPlatform(url) {
-    const u = url.toLowerCase();
-    if (u.includes('youtube.com') || u.includes('youtu.be')) return 'youtube';
-    if (u.includes('tiktok.com')) return 'tiktok';
-    if (u.includes('facebook.com') || u.includes('fb.watch') || u.includes('fb.com')) return 'facebook';
-    if (u.includes('twitter.com') || u.includes('x.com')) return 'twitter';
-    if (u.includes('instagram.com') || u.includes('instagr.am')) return 'instagram';
-    return null;
 }
 
 app.use(express.static(path.join(__dirname), {
@@ -381,5 +396,11 @@ app.post('/api/download', (req, res) => {
     if (!url) return res.status(400).json({ error: 'url parameter required' });
     streamVideo(url, platform || 'tiktok', req, res);
 });
+
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log('Server running on http://localhost:' + PORT);
+    });
+}
 
 module.exports = app;
