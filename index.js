@@ -368,6 +368,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+const YT_WORKER_URL = process.env.YT_WORKER_URL || 'https://social-video-downloader-yt-worker.deno.dev';
+
 app.post('/api/fetch', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
@@ -376,7 +378,16 @@ app.post('/api/fetch', async (req, res) => {
     try {
         let result;
         switch (platform) {
-            case 'youtube': result = await fetchYouTube(url); break;
+            case 'youtube':
+                try {
+                    const ytResp = await axios.post(YT_WORKER_URL, { url }, { timeout: 15000 });
+                    if (ytResp.data.success) { result = ytResp.data.data; break; }
+                    throw new Error(ytResp.data.error || 'YouTube worker failed');
+                } catch (e) {
+                    if (e.response?.data?.error) throw new Error(e.response.data.error);
+                    result = await fetchYouTube(url);
+                }
+                break;
             case 'tiktok': result = await fetchTikTok(url); break;
             case 'facebook': result = await fetchFacebook(url); break;
             case 'twitter': result = await fetchTwitter(url); break;
