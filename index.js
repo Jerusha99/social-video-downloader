@@ -368,7 +368,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const YT_WORKER_URL = process.env.YT_WORKER_URL || 'https://social-video-downloader-yt-worker.deno.dev';
+const YT_WORKER_URL = process.env.YT_WORKER_URL || 'https://youtubedown.jerushasharon1999.workers.dev/';
 
 app.post('/api/fetch', async (req, res) => {
     const { url } = req.body;
