@@ -1,0 +1,7 @@
+run = "cd api-server && npm install --production && node server.js"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["cd", "api-server", "&&", "npm", "install", "--production", "&&", "node", "server.js"]

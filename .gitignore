@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.log
+api-server/node_err.txt
+api-server/node_out.txt
+api-server/node_modules/
