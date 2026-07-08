@@ -5,7 +5,7 @@ const cheerio = require('cheerio');
 const https = require('https');
 const path = require('path');
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-const ytdl = require('ytdl-core');
+
 
 const app = express();
 app.use(cors());
@@ -61,27 +61,95 @@ async function fetchYouTube(url) {
     const videoId = extractYouTubeId(url);
     if (!videoId) throw new Error('Could not extract YouTube video ID.');
 
-    // Method 1: InnerTube API (fastest, works from most networks)
-    const clients = [
-        { name: 'ANDROID', version: '20.10.38', ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip' },
-        { name: 'WEB', version: '2.20240101.00.00', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' },
+    // Method 1: Piped API (works from cloud IPs, no PoToken needed)
+    try {
+        const resp = await axios.get('https://pipedapi.kavin.rocks/streams/' + encodeURIComponent(videoId), {
+            headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'application/json' }, timeout: 8000,
+        });
+        const data = resp.data;
+        if (data && data.error) throw new Error(data.error);
+        const formats = [];
+        const seen = new Set();
+        for (const s of (data.videoStreams || [])) {
+            const ext = (s.format || 'mp4').toLowerCase();
+            if (ext !== 'mp4') continue;
+            const key = s.quality + '_' + ext;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            formats.push({ url: s.url, label: s.quality || 'video', format: ext, type: 'video', size: 0 });
+        }
+        for (const s of (data.audioStreams || [])) {
+            const ext = (s.format || 'm4a').toLowerCase().replace('m4a', 'mp3');
+            const key = 'audio_' + ext;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            formats.push({ url: s.url, label: (s.bitrate || '128') + 'kbps', format: ext, type: 'audio', size: 0 });
+        }
+        if (formats.length > 0) {
+            const thumb = data.thumbnailUrl || '';
+            return { title: data.title || 'Untitled', thumbnail: thumb, duration: formatDuration(data.duration || 0), platform: 'youtube', formats };
+        }
+    } catch (e) { /* fall through */ }
+
+    // Method 2: Invidious API fallback
+    const invidiousInstances = [
+        'https://inv.zoomerville.com',
+        'https://invidious.f5.si',
+        'https://invidious.nerdvpn.de',
+        'https://invidious.tiekoetter.com',
     ];
-    for (const client of clients) {
+    for (const instance of invidiousInstances) {
         try {
-            const payload = {
-                videoId,
-                context: { client: { hl: 'en', gl: 'US', clientName: client.name, clientVersion: client.version, ...(client.name === 'ANDROID' ? { androidSdkVersion: 34, osName: 'Android', osVersion: '14' } : {}) } },
-            };
-            const resp = await axios.post('https://www.youtube.com/youtubei/v1/player?key=' + YT_API_KEY, payload, {
-                httpsAgent, headers: { 'Content-Type': 'application/json', 'User-Agent': client.ua }, timeout: 8000,
+            const resp = await axios.get(instance + '/api/v1/videos/' + encodeURIComponent(videoId), {
+                headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'application/json' }, timeout: 8000,
             });
             const data = resp.data;
             if (!data || data.error) continue;
-            if (data.playabilityStatus?.status && data.playabilityStatus.status !== 'OK') continue;
+            const formats = [];
+            const seen = new Set();
+            for (const f of (data.formatStreams || [])) {
+                const ext = (f.container || 'mp4').toLowerCase();
+                if (ext !== 'mp4') continue;
+                const label = f.qualityLabel || f.resolution || 'video';
+                const key = label + '_' + ext;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                formats.push({ url: f.url, label, format: ext, type: 'video', size: 0 });
+            }
+            for (const f of (data.adaptiveFormats || [])) {
+                const ext = (f.container || 'mp4').toLowerCase();
+                const label = f.qualityLabel || f.resolution || f.bitrate || 'audio';
+                const type = f.type && f.type.includes('audio') ? 'audio' : 'video';
+                const key = label + '_' + ext + (type === 'audio' ? '_audio' : '');
+                if (seen.has(key)) continue;
+                seen.add(key);
+                formats.push({ url: f.url, label, format: ext, type, size: 0 });
+            }
+            if (formats.length > 0) {
+                const thumb = data.videoThumbnails?.find(t => t.quality === 'maxres')?.url || data.authorThumbnail || '';
+                return { title: data.title || 'Untitled', thumbnail: thumb, duration: formatDuration(data.lengthSeconds || 0), platform: 'youtube', formats };
+            }
+        } catch (e) { continue; }
+    }
+
+    // Method 3: InnerTube TVHTML5_SIMPLY_EMBEDDED_PLAYER (no PoToken needed for embeddable)
+    try {
+        const payload = {
+            videoId,
+            context: {
+                client: { clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0', clientScreen: 'EMBED', hl: 'en', gl: 'US' },
+                thirdParty: { embedUrl: 'https://www.youtube.com/embed/' + videoId },
+            },
+            contentCheckOk: true, racyCheckOk: true,
+        };
+        const resp = await axios.post('https://www.youtube.com/youtubei/v1/player?key=' + YT_API_KEY, payload, {
+            httpsAgent, headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent('desktop'), 'Origin': 'https://www.youtube.com', 'Referer': 'https://www.youtube.com/watch?v=' + videoId, 'X-Youtube-Client-Name': '85', 'X-Youtube-Client-Version': '2.0' }, timeout: 8000,
+        });
+        const data = resp.data;
+        if (data && data.playabilityStatus?.status === 'OK') {
             const videoDetails = data.videoDetails || {};
             const streamingData = data.streamingData || {};
             const allFormats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])];
-            if (allFormats.length === 0) continue;
             const formats = [];
             const seen = new Set();
             for (const f of allFormats) {
@@ -109,32 +177,6 @@ async function fetchYouTube(url) {
                 const thumbs = videoDetails.thumbnail?.thumbnails || [];
                 const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
                 return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4') };
-            }
-        } catch (e) { continue; }
-    }
-
-    // Method 2: @distube/ytdl
-    try {
-        const info = await ytdl.getInfo('https://www.youtube.com/watch?v=' + videoId);
-        if (info && info.formats && info.formats.length > 0) {
-            const formats = [];
-            const seen = new Set();
-            for (const f of info.formats) {
-                const ext = (f.container || 'mp4').toLowerCase();
-                if (ext !== 'mp4' && ext !== 'mp3') continue;
-                const label = f.qualityLabel || f.quality || (f.audioBitrate ? f.audioBitrate + 'kbps' : 'audio');
-                const type = f.hasVideo ? 'video' : 'audio';
-                const key = label + '_' + ext;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                formats.push({ url: f.url, label, format: ext, type, size: f.contentLength || 0 });
-            }
-            if (formats.length > 0) {
-                formats.sort((a, b) => b.size - a.size);
-                const filtered = formats.filter(f => f.format === 'mp4' || f.format === 'mp3');
-                const thumbs = info.videoDetails?.thumbnails || [];
-                const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
-                return { title: info.videoDetails?.title || 'Untitled', thumbnail: thumb, duration: formatDuration(info.videoDetails?.lengthSeconds || 0), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats };
             }
         }
     } catch (e) { /* fall through */ }
@@ -369,7 +411,7 @@ app.post('/api/fetch', async (req, res) => {
     }
 });
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.2' }));
 
 async function streamVideo(videoUrl, platform, req, res) {
     const referers = { youtube: 'https://www.youtube.com/', tiktok: 'https://www.tiktok.com/', facebook: 'https://www.facebook.com/', instagram: 'https://www.instagram.com/', twitter: 'https://twitter.com/' };
