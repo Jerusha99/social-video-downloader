@@ -393,8 +393,8 @@ app.post('/api/fetch', async (req, res) => {
                 break;
             case 'twitter': result = await fetchTwitter(url); break;
             case 'instagram':
-                try { result = await fetchViaYtDlp(url, 'instagram'); } catch (e) {
-                    try { result = await fetchViaWorker(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
+                try { result = await fetchViaWorker(url, 'instagram'); } catch (e) {
+                    try { result = await fetchViaYtDlp(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
                 }
                 break;
             default: throw new Error('Unsupported platform');
