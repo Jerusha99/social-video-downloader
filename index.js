@@ -62,77 +62,43 @@ async function fetchYouTube(url) {
     if (!videoId) throw new Error('Could not extract YouTube video ID.');
 
     // Method 1: Piped API (works from cloud IPs, no PoToken needed)
-    try {
-        const resp = await axios.get('https://pipedapi.kavin.rocks/streams/' + encodeURIComponent(videoId), {
-            headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'application/json' }, timeout: 8000,
-        });
-        const data = resp.data;
-        if (data && data.error) throw new Error(data.error);
-        const formats = [];
-        const seen = new Set();
-        for (const s of (data.videoStreams || [])) {
-            const ext = (s.format || 'mp4').toLowerCase();
-            if (ext !== 'mp4') continue;
-            const key = s.quality + '_' + ext;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            formats.push({ url: s.url, label: s.quality || 'video', format: ext, type: 'video', size: 0 });
-        }
-        for (const s of (data.audioStreams || [])) {
-            const ext = (s.format || 'm4a').toLowerCase().replace('m4a', 'mp3');
-            const key = 'audio_' + ext;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            formats.push({ url: s.url, label: (s.bitrate || '128') + 'kbps', format: ext, type: 'audio', size: 0 });
-        }
-        if (formats.length > 0) {
-            const thumb = data.thumbnailUrl || '';
-            return { title: data.title || 'Untitled', thumbnail: thumb, duration: formatDuration(data.duration || 0), platform: 'youtube', formats };
-        }
-    } catch (e) { /* fall through */ }
-
-    // Method 2: Invidious API fallback
-    const invidiousInstances = [
-        'https://inv.zoomerville.com',
-        'https://invidious.f5.si',
-        'https://invidious.nerdvpn.de',
-        'https://invidious.tiekoetter.com',
+    const pipedInstances = [
+        'https://pipedapi.kavin.rocks',
+        'https://pipedapi.adminforge.de',
+        'https://pipedapi-libre.kavin.rocks',
     ];
-    for (const instance of invidiousInstances) {
+    for (const pipedUrl of pipedInstances) {
         try {
-            const resp = await axios.get(instance + '/api/v1/videos/' + encodeURIComponent(videoId), {
-                headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'application/json' }, timeout: 8000,
+            const resp = await axios.get(pipedUrl + '/streams/' + encodeURIComponent(videoId), {
+                headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'application/json' }, timeout: 6000,
             });
             const data = resp.data;
-            if (!data || data.error) continue;
+            if (data && data.error) continue;
             const formats = [];
             const seen = new Set();
-            for (const f of (data.formatStreams || [])) {
-                const ext = (f.container || 'mp4').toLowerCase();
+            for (const s of (data.videoStreams || [])) {
+                const ext = (s.format || 'mp4').toLowerCase();
                 if (ext !== 'mp4') continue;
-                const label = f.qualityLabel || f.resolution || 'video';
-                const key = label + '_' + ext;
+                const key = s.quality + '_' + ext;
                 if (seen.has(key)) continue;
                 seen.add(key);
-                formats.push({ url: f.url, label, format: ext, type: 'video', size: 0 });
+                formats.push({ url: s.url, label: s.quality || 'video', format: ext, type: 'video', size: 0 });
             }
-            for (const f of (data.adaptiveFormats || [])) {
-                const ext = (f.container || 'mp4').toLowerCase();
-                const label = f.qualityLabel || f.resolution || f.bitrate || 'audio';
-                const type = f.type && f.type.includes('audio') ? 'audio' : 'video';
-                const key = label + '_' + ext + (type === 'audio' ? '_audio' : '');
+            for (const s of (data.audioStreams || [])) {
+                const ext = (s.format || 'm4a').toLowerCase().replace('m4a', 'mp3');
+                const key = 'audio_' + ext;
                 if (seen.has(key)) continue;
                 seen.add(key);
-                formats.push({ url: f.url, label, format: ext, type, size: 0 });
+                formats.push({ url: s.url, label: (s.bitrate || '128') + 'kbps', format: ext, type: 'audio', size: 0 });
             }
             if (formats.length > 0) {
-                const thumb = data.videoThumbnails?.find(t => t.quality === 'maxres')?.url || data.authorThumbnail || '';
-                return { title: data.title || 'Untitled', thumbnail: thumb, duration: formatDuration(data.lengthSeconds || 0), platform: 'youtube', formats };
+                const thumb = data.thumbnailUrl || '';
+                return { title: data.title || 'Untitled', thumbnail: thumb, duration: formatDuration(data.duration || 0), platform: 'youtube', formats };
             }
-        } catch (e) { continue; }
+        } catch (e) { /* fall through */ }
     }
 
-    // Method 3: InnerTube API with multiple clients (various API keys)
+    // Method 2: InnerTube API with multiple clients (various API keys)
     const innertubeClients = [
         { name: 'ANDROID', version: '20.10.38', key: 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w', ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip', extra: { androidSdkVersion: 34, osName: 'Android', osVersion: '14' } },
         { name: 'ANDROID_VR', version: '1.71.26', key: '', ua: 'Mozilla/5.0 (Linux; Android 12; Quest 3) AppleWebKit/537.36', extra: { androidSdkVersion: 32, osName: 'Android', osVersion: '12L', deviceMake: 'Oculus', deviceModel: 'Quest 3' } },
