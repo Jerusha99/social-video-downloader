@@ -62,7 +62,7 @@ async function fetchYouTube(url) {
             const resp = await axios.post(`https://www.youtube.com/youtubei/v1/player?key=${YT_API_KEY}`, payload, {
                 httpsAgent,
                 headers: { 'Content-Type': 'application/json', 'User-Agent': client.ua },
-                timeout: 20000,
+                timeout: 8000,
             });
             const data = resp.data;
             if (!data || data.error) continue;
@@ -111,7 +111,7 @@ async function fetchTikTok(url) {
         const form = new URLSearchParams({ url, count: 12, cursor: 0, hd: 1 });
         const resp = await axios.post('https://tikwm.com/api/', form.toString(), {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': userAgent('mobile'), 'Accept': 'application/json' },
-            timeout: 15000,
+            timeout: 8000,
         });
         const d = resp.data;
         if (d.code === 0 && d.data) {
@@ -138,7 +138,7 @@ async function fetchFacebook(url) {
         if (!mobileUrl.includes('mbasic.facebook.com')) { const u = new URL(url); mobileUrl = 'https://mbasic.facebook.com' + u.pathname + u.search; }
         const resp = await axios.get(mobileUrl, {
             headers: { 'User-Agent': userAgent('facebook'), 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'locale=en_US;' },
-            timeout: 15000, maxRedirects: 5,
+            timeout: 8000, maxRedirects: 5,
         });
         const $ = cheerio.load(resp.data);
         let videoUrl = '';
@@ -159,7 +159,7 @@ async function fetchTwitter(url) {
         const tweetId = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/i)?.[1];
         if (tweetId) {
             const resp = await axios.get('https://cdn.syndication.twimg.com/tweet-result?id=' + tweetId + '&lang=en&token=', {
-                headers: { 'User-Agent': userAgent('desktop') }, timeout: 10000,
+                headers: { 'User-Agent': userAgent('desktop') }, timeout: 8000,
             });
             const d = resp.data;
             const title = (d.text || 'Tweet').substring(0, 200);
@@ -184,7 +184,7 @@ async function fetchTwitter(url) {
 async function fetchInstagram(url) {
     try {
         const resp = await axios.get('https://api.instagram.com/oembed?url=' + encodeURIComponent(url), {
-            headers: { 'User-Agent': userAgent('instagram') }, timeout: 10000,
+            headers: { 'User-Agent': userAgent('instagram') }, timeout: 8000,
         });
         const d = resp.data;
         return { title: d.title || 'Instagram Post', thumbnail: d.thumbnail_url || '', duration: '', platform: 'instagram', formats: [] };
