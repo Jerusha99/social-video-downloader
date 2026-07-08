@@ -154,7 +154,7 @@ async function fetchYouTube(url) {
             const apiKey = client.key || YT_API_KEY;
             const headers = { 'Content-Type': 'application/json', 'User-Agent': client.ua };
             if (apiKey) headers['X-Youtube-Client-Name'] = client.name;
-            const resp = await axios.post('https://www.youtube.com/youtubei/v1/player?key=' + apiKey, payload, {
+            const resp = await axios.post('https://youtubei.googleapis.com/youtubei/v1/player?key=' + apiKey, payload, {
                 httpsAgent, headers, timeout: 8000,
             });
             const data = resp.data;
