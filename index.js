@@ -256,6 +256,10 @@ app.use(express.static(path.join(__dirname), {
     },
 }));
 
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 app.post('/api/fetch', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
