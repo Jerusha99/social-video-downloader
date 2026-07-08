@@ -4,8 +4,14 @@
   "description": "SocialSave Pro - Download videos from YouTube, TikTok, Instagram, Facebook, Twitter, Vimeo, Dailymotion",
   "main": "api-server/server.js",
   "scripts": {
-    "start": "node api-server/server.js",
-    "build": "cd api-server && npm install"
+    "start": "node api-server/server.js"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "localtunnel": "^2.0.2"
   },
   "keywords": ["video-downloader", "youtube", "tiktok", "instagram"],
   "author": "Jerusha'Tech",
