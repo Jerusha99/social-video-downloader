@@ -104,27 +104,30 @@ async function fetchYouTube(url) {
                     if (sp && s) streamUrl += '&' + sp + '=' + encodeURIComponent(s);
                 }
                 if (!streamUrl) continue;
-                const label = f.qualityLabel || f.quality || 'audio';
-                const mime = f.mimeType || '';
-                let ext = 'mp4';
-                if (mime) { const parts = mime.split('/'); ext = (parts[1] || 'mp4').split(';')[0]; }
-                const type = f.qualityLabel ? 'video' : 'audio';
-                const key = label + '_' + ext;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                formats.push({ url: streamUrl, label, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
+const label = f.qualityLabel || f.quality || 'audio';
+const mime = f.mimeType || '';
+let ext = 'mp4';
+if (mime) { const parts = mime.split('/'); ext = (parts[1] || 'mp4').split(';')[0]; }
+const type = f.qualityLabel ? 'video' : 'audio';
+const displayLabel = type === 'audio' ? (f.bitrate ? Math.round(f.bitrate / 1000) + 'kbps Audio' : 'Audio') : label;
+const key = label + '_' + ext;
+if (seen.has(key)) continue;
+seen.add(key);
+formats.push({ url: streamUrl, label: displayLabel, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
             }
             if (formats.length > 0) {
                 formats.sort((a, b) => b.size - a.size);
                 const filtered = formats.filter(f => { const e = (f.format || '').toLowerCase(); return e === 'mp4' || e === 'mp3'; });
                 const thumbs = videoDetails.thumbnail?.thumbnails || [];
                 const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+                const description = videoDetails.shortDescription || '';
                 return {
                     title: videoDetails.title || 'Untitled',
                     thumbnail: thumb,
                     duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)),
                     platform: 'youtube',
                     formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4'),
+                    description: description.substring(0, 300),
                 };
             }
         } catch { continue; }
@@ -201,6 +204,7 @@ async function fetchInstagram(url) {
     }
 
     // Method 3: Try downloadgram.app proxy (gets actual video URL)
+    let downloadgramResult = null;
     try {
         const resp = await fetch('https://api.downloadgram.app/media', {
             method: 'POST',
@@ -213,11 +217,9 @@ async function fetchInstagram(url) {
         });
         if (resp.ok) {
             const text = await resp.text();
-            // Extract HTML from response like: loader['style']['display']='none',document['getElementById']('div_download')['innerHTML']='...'
             const htmlMatch = text.match(/innerHTML'\]='([^']*)'/);
             if (htmlMatch) {
                 const html = htmlMatch[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-                // Extract download link
                 const linkMatch = html.match(/href="([^"]*cdn\.downloadgram\.app[^"]*)"/i);
                 const thumbMatch = html.match(/src="([^"]*cdn\.downloadgram\.app[^"]*)"/i);
                 const titleMatch = html.match(/alt="([^"]*)"/i);
@@ -225,7 +227,7 @@ async function fetchInstagram(url) {
                     const videoUrl = linkMatch[1].replace(/&amp;/g, '&');
                     const thumb = thumbMatch ? thumbMatch[1].replace(/&amp;/g, '&') : '';
                     const title = titleMatch ? titleMatch[1] : 'Instagram Video';
-                    return {
+                    downloadgramResult = {
                         title: title.substring(0, 200),
                         thumbnail: thumb,
                         duration: '',
@@ -236,6 +238,27 @@ async function fetchInstagram(url) {
             }
         }
     } catch {}
+
+    // Try to enrich downloadgram result with metadata from Instagram page
+    if (downloadgramResult) {
+        try {
+            const resp = await fetch('https://www.instagram.com/p/' + shortcode + '/', {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml',
+                },
+            });
+            if (resp.ok) {
+                const html = await resp.text();
+                const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+                if (ogTitleMatch) downloadgramResult.title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '').substring(0, 200);
+                // Some Instagram pages still have description via og:description on server-rendered pages
+                const ogDescMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+                if (ogDescMatch) downloadgramResult.description = ogDescMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '').substring(0, 300);
+            }
+        } catch {}
+        return downloadgramResult;
+    }
 
     // Method 4: Scrape the page for metadata
     try {
@@ -279,8 +302,9 @@ async function fetchFacebook(url) {
             if (ogTitleMatch) title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
             const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
             if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
+            const ogDescMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+            const description = ogDescMatch ? ogDescMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '') : '';
 
-            // Look for browser_native_hd_url (HD) - escaped JSON in Facebook page data
             const hdRegex = /"browser_native_hd_url"\s*:\s*"([^"]+)"/i;
             const sdRegex = /"browser_native_sd_url"\s*:\s*"([^"]+)"/i;
             const hdMatch = hdRegex.exec(html);
@@ -288,21 +312,17 @@ async function fetchFacebook(url) {
 
             if (hdMatch) {
                 const videoUrl = hdMatch[1].replace(/\\\//g, '/');
-                if (videoUrl && videoUrl.length > 10) {
-                    formats.push({ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
-                }
+                if (videoUrl && videoUrl.length > 10) formats.push({ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
             }
             if (sdMatch) {
                 const videoUrl = sdMatch[1].replace(/\\\//g, '/');
-                if (videoUrl && videoUrl.length > 10) {
-                    if (!hdMatch || videoUrl !== hdMatch[1].replace(/\\\//g, '/')) {
-                        formats.push({ url: videoUrl, label: 'SD Video', format: 'mp4', type: 'video', size: 0 });
-                    }
+                if (videoUrl && videoUrl.length > 10 && (!hdMatch || videoUrl !== hdMatch[1].replace(/\\\//g, '/'))) {
+                    formats.push({ url: videoUrl, label: 'SD Video', format: 'mp4', type: 'video', size: 0 });
                 }
             }
 
             if (formats.length > 0) {
-                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats, description: description.substring(0, 300) };
             }
         }
     } catch {}

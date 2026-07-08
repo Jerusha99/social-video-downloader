@@ -145,17 +145,19 @@ async function fetchYouTube(url) {
                 let ext = 'mp4';
                 if (mime) { const parts = mime.split('/'); ext = (parts[1] || 'mp4').split(';')[0]; }
                 const type = f.qualityLabel ? 'video' : 'audio';
+                const displayLabel = type === 'audio' ? (f.bitrate ? Math.round(f.bitrate / 1000) + 'kbps Audio' : 'Audio') : label;
                 const key = label + '_' + ext;
                 if (seen.has(key)) continue;
                 seen.add(key);
-                formats.push({ url: streamUrl, label, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
+                formats.push({ url: streamUrl, label: displayLabel, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
             }
             if (formats.length > 0) {
                 formats.sort((a, b) => b.size - a.size);
                 const filtered = formats.filter(f => { const e = (f.format || '').toLowerCase(); return e === 'mp4' || e === 'mp3'; });
                 const thumbs = videoDetails.thumbnail?.thumbnails || [];
                 const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
-                return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4') };
+                const ytDesc = videoDetails.shortDescription || '';
+                return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4'), description: ytDesc.substring(0, 300) };
             }
         } catch (e) { continue; }
     }
@@ -202,6 +204,8 @@ async function fetchFacebook(url) {
         if (ogTitleMatch) title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
         const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
         if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
+        const ogDescMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+        const description = ogDescMatch ? ogDescMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '') : '';
 
         const hdMatch = html.match(/"browser_native_hd_url"\s*:\s*"([^"]+)"/i);
         const sdMatch = html.match(/"browser_native_sd_url"\s*:\s*"([^"]+)"/i);
@@ -216,7 +220,7 @@ async function fetchFacebook(url) {
                 formats.push({ url: videoUrl, label: 'SD Video', format: 'mp4', type: 'video', size: 0 });
             }
         }
-        if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+        if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats, description: description.substring(0, 300) };
     } catch (e) { /* fall through */ }
 
     // Method 1: Scrape mbasic.facebook.com

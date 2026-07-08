@@ -331,6 +331,17 @@ body {
     margin-bottom: 14px;
 }
 
+.video-info .description {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .download-options {
     display: flex;
     flex-wrap: wrap;
