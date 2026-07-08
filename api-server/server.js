@@ -835,4 +835,26 @@ app.post('/api/download', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`API server running on http://localhost:${PORT}`);
+    // Auto-create public tunnel (local dev only)
+    if (!process.env.RENDER && !process.env.RENDER_EXTERNAL_URL) {
+        try {
+            const localtunnel = require('localtunnel');
+            (async () => {
+                try {
+                    const tunnel = await localtunnel({ port: PORT });
+                    console.log('');
+                    console.log('========================================');
+                    console.log('  🌍 PUBLIC URL: ' + tunnel.url);
+                    console.log('  Share this link with anyone!');
+                    console.log('========================================');
+                    console.log('');
+                    tunnel.on('close', () => console.log('Tunnel closed'));
+                } catch (e) {
+                    console.log('Tunnel unavailable (not required for local use)');
+                }
+            })();
+        } catch (e) {
+            // tunnel not installed, ignore
+        }
+    }
 });
