@@ -133,43 +133,74 @@ async function fetchYouTube(url) {
 }
 
 async function fetchInstagram(url) {
-    // Extract shortcode
     const shortcodeMatch = url.match(/(?:instagram\.com(?:\/[a-z]+)?)\/(p|reel|tv)\/([^\/?#]+)/i);
     const shortcode = shortcodeMatch ? shortcodeMatch[2] : null;
     if (!shortcode) throw new Error('Could not extract Instagram shortcode.');
 
-    // Method 1: Try Instagram GraphQL API (works from some IPs)
+    // Method 1: Try the oEmbed API (used to work, now returns FB page but try anyway)
     try {
-        const resp = await fetch('https://www.instagram.com/graphql/query/?query_hash=2efa0f37edf79b2eefbae5e3dd0b4f4d&variables=' + encodeURIComponent(JSON.stringify({
-            shortcode: shortcode,
-            child_comment_count: 0,
-            fetch_comment_count: 0,
-            parent_comment_count: 0,
-            has_threaded_comments: false,
-        })), {
+        const resp = await fetch('https://api.instagram.com/oembed?url=https://www.instagram.com/p/' + shortcode + '/&format=json', {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'application/json',
-                'Accept-Language': 'en-US,en;q=0.9',
             },
         });
         if (resp.ok) {
-            const data = await resp.json();
-            const media = data?.data?.shortcode_media;
-            if (media) {
-                const isVideo = media.is_video || media.__typename === 'GraphVideo';
-                const formats = [];
-                if (isVideo && media.video_url) {
-                    formats.push({ url: media.video_url, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
-                }
-                const title = media.edge_media_to_caption?.edges?.[0]?.node?.text || media.accessibility_caption || 'Instagram Video';
-                const thumb = media.display_url || media.thumbnail_src || '';
-                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+            const ct = resp.headers.get('content-type') || '';
+            if (ct.includes('json')) {
+                const d = await resp.json();
+                const title = d.title || 'Instagram Video';
+                const thumb = d.thumbnail_url || '';
+                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
             }
         }
     } catch {}
 
-    // Method 2: Try the page scrape (has og:image at least)
+    // Method 2: Try different GraphQL query hashes
+    const queryHashes = [
+        '2efa0f37edf79b2eefbae5e3dd0b4f4d',  // old
+        '477b7c6a1b1270a548210be15406b4d2',  // alternative
+        '2b0673fb2bb132f59b6c9b5dbd402db6',  // another
+    ];
+    for (const qh of queryHashes) {
+        try {
+            const resp = await fetch('https://www.instagram.com/graphql/query/?query_hash=' + qh + '&variables=' + encodeURIComponent(JSON.stringify({
+                shortcode: shortcode,
+                child_comment_count: 0, fetch_comment_count: 0, parent_comment_count: 0, has_threaded_comments: false,
+            })), {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                const media = data?.data?.shortcode_media;
+                if (media) {
+                    const isVideo = media.is_video || media.__typename === 'GraphVideo' || media.__typename === 'GraphSidecar';
+                    const formats = [];
+                    if (media.video_url) {
+                        formats.push({ url: media.video_url, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
+                    }
+                    // Handle sidecar (multiple media)
+                    if (media.__typename === 'GraphSidecar' && media.edge_sidecar_to_children?.edges) {
+                        for (const edge of media.edge_sidecar_to_children.edges) {
+                            const node = edge.node;
+                            if (node.is_video && node.video_url) {
+                                formats.push({ url: node.video_url, label: 'Video', format: 'mp4', type: 'video', size: 0 });
+                            }
+                        }
+                    }
+                    const title = media.edge_media_to_caption?.edges?.[0]?.node?.text || media.accessibility_caption || 'Instagram Video';
+                    const thumb = media.display_url || media.thumbnail_src || '';
+                    return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+                }
+            }
+        } catch {}
+    }
+
+    // Method 3: Scrape the page for og:image (thumbnail only)
     try {
         const resp = await fetch('https://www.instagram.com/p/' + shortcode + '/', {
             headers: {
@@ -184,87 +215,27 @@ async function fetchInstagram(url) {
         if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
         const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
         if (ogTitleMatch) title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
-        return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
+        if (thumb) {
+            return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
+        }
     } catch {}
 
     throw new Error('Could not fetch Instagram content. It may be private or unavailable.');
 }
 
 async function fetchFacebook(url) {
-    // Convert share URLs to mbasic format and follow redirects
-    let mobileUrl = url
+    // Normalize URL
+    const normalizedUrl = url
         .replace('www.facebook.com', 'mbasic.facebook.com')
         .replace('m.facebook.com', 'mbasic.facebook.com')
         .replace('fb.watch', 'mbasic.facebook.com/watch');
 
-    try {
-        const u = new URL(url);
-        if (!mobileUrl.includes('mbasic.facebook.com')) {
-            mobileUrl = 'https://mbasic.facebook.com' + u.pathname + u.search;
-        }
+    const u = new URL(url);
+    const mbasicUrl = normalizedUrl.includes('mbasic.facebook.com')
+        ? normalizedUrl
+        : 'https://mbasic.facebook.com' + u.pathname + u.search;
 
-        // Follow redirects manually to get the final page
-        let currentUrl = mobileUrl;
-        for (let i = 0; i < 5; i++) {
-            const resp = await fetch(currentUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                },
-                redirect: 'manual',
-            });
-            if (resp.status >= 300 && resp.status < 400 && resp.headers.get('Location')) {
-                const location = resp.headers.get('Location');
-                currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
-            } else {
-                const html = await resp.text();
-                let videoUrl = '';
-
-                // Try to find video_redirect links
-                const redirectRegex = /href="([^"]*video_redirect[^"]*)"/g;
-                let match;
-                while ((match = redirectRegex.exec(html)) !== null) {
-                    const href = match[1].replace(/&amp;/g, '&');
-                    const srcMatch = href.match(/src=([^&]+)/);
-                    if (srcMatch) {
-                        try {
-                            videoUrl = decodeURIComponent(srcMatch[1]);
-                            break;
-                        } catch {}
-                    }
-                }
-
-                // Try to find source tags with .mp4
-                if (!videoUrl) {
-                    const sourceRegex = /<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/gi;
-                    const sourceMatch = sourceRegex.exec(html);
-                    if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
-                }
-
-                // Try to find video src directly
-                if (!videoUrl) {
-                    const videoSrcRegex = /<video[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/gi;
-                    const videoMatch = videoSrcRegex.exec(html);
-                    if (videoMatch) videoUrl = videoMatch[1].replace(/&amp;/g, '&');
-                }
-
-                const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
-                const title = titleMatch ? titleMatch[1].trim() : 'Facebook Video';
-                const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-                const thumb = ogImageMatch ? ogImageMatch[1].replace(/&amp;/g, '&') : '';
-
-                if (videoUrl) {
-                    return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
-                }
-
-                // Even without video, return metadata
-                return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [] };
-            }
-        }
-    } catch {}
-
-    // Method 2: Try Graph API
+    // Method 1: Try Graph API (works for public posts)
     try {
         const resp = await fetch('https://graph.facebook.com/v19.0/?id=' + encodeURIComponent(url) + '&fields=og_object{title,image,video}', {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
@@ -275,10 +246,80 @@ async function fetchFacebook(url) {
             const title = og.title || 'Facebook Video';
             const thumb = (og.image && og.image[0] && og.image[0].url) || '';
             const videoSrc = (og.video && og.video.url) || '';
-            const formats = videoSrc ? [{ url: videoSrc, label: 'Video', format: 'mp4', type: 'video', size: 0 }] : [];
+            const formats = videoSrc ? [{ url: videoSrc, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] : [];
             return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats };
         }
     } catch {}
+
+    // Method 2: Scrape mbasic with redirect following
+    try {
+        let currentUrl = mbasicUrl;
+        for (let i = 0; i < 5; i++) {
+            const resp = await fetch(currentUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
+                redirect: 'manual',
+            });
+
+            if (resp.status >= 300 && resp.status < 400) {
+                const location = resp.headers.get('Location');
+                if (location) {
+                    currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
+                    continue;
+                }
+            }
+
+            const html = await resp.text();
+
+            // Check if this is a login page
+            if (html.includes('login.php') || html.includes('Log in') || html.includes('login_form')) {
+                throw new Error('Facebook requires login to view this content');
+            }
+
+            let videoUrl = '';
+            const redirectRegex = /href="([^"]*video_redirect[^"]*)"/g;
+            let match;
+            while ((match = redirectRegex.exec(html)) !== null) {
+                const href = match[1].replace(/&amp;/g, '&');
+                const srcMatch = href.match(/src=([^&]+)/);
+                if (srcMatch) {
+                    try { videoUrl = decodeURIComponent(srcMatch[1]); break; } catch {}
+                }
+            }
+
+            if (!videoUrl) {
+                const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/gi);
+                if (sourceMatch) {
+                    const src = sourceMatch[0].match(/src="([^"]+)"/i);
+                    if (src) videoUrl = src[1].replace(/&amp;/g, '&');
+                }
+            }
+
+            if (!videoUrl) {
+                const videoSrcMatch = html.match(/<video[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/gi);
+                if (videoSrcMatch) {
+                    const src = videoSrcMatch[0].match(/src="([^"]+)"/i);
+                    if (src) videoUrl = src[1].replace(/&amp;/g, '&');
+                }
+            }
+
+            const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
+            const title = titleMatch ? titleMatch[1].trim() : 'Facebook Video';
+            const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+            const thumb = ogImageMatch ? ogImageMatch[1].replace(/&amp;/g, '&') : '';
+
+            if (videoUrl) {
+                return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+            }
+
+            return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [] };
+        }
+    } catch (e) {
+        if (e.message.includes('requires login')) throw e;
+    }
 
     throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
 }
