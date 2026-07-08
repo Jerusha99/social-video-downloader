@@ -103,7 +103,7 @@ async function fetchYouTube(url) {
             }
         } catch (e) { continue; }
     }
-    throw new Error('Could not fetch YouTube video. It may be private or unavailable.');
+    throw new Error('Could not fetch YouTube video.');
 }
 
 async function fetchTikTok(url) {
@@ -196,8 +196,8 @@ const { execSync } = require('child_process');
 
 function findYtDlp() {
     const candidates = [
-        'yt-dlp', 'yt-dlp.exe', path.join(__dirname, '..', 'bin', 'yt-dlp.exe'),
-        path.join(__dirname, '..', 'bin', 'yt-dlp'),
+        'yt-dlp', 'yt-dlp.exe', path.join(__dirname, 'bin', 'yt-dlp.exe'),
+        path.join(__dirname, 'bin', 'yt-dlp'),
         path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'yt-dlp.exe'),
         path.join(process.env.TEMP || '', 'opencode', 'yt-dlp.exe'),
         path.join(process.env.TMP || '', 'opencode', 'yt-dlp.exe'),
@@ -248,7 +248,7 @@ function detectPlatform(url) {
     return null;
 }
 
-app.use(express.static(path.join(__dirname, '..'), {
+app.use(express.static(path.join(__dirname), {
     index: 'index.html',
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
