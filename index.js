@@ -186,6 +186,7 @@ async function fetchTikTok(url) {
 }
 
 async function fetchFacebook(url) {
+    const invalidTitles = ['log in', 'error', 'facebook'];
     // Method 1: Scrape mbasic.facebook.com
     try {
         let mobileUrl = url.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com').replace('fb.watch', 'mbasic.facebook.com/watch');
@@ -201,7 +202,10 @@ async function fetchFacebook(url) {
             if (href && href.includes('video_redirect')) { const params = new URLSearchParams(href.split('?')[1] || ''); const src = params.get('src'); if (src) videoUrl = decodeURIComponent(src); }
         });
         if (!videoUrl) { $('source').each((i, el) => { const src = $(el).attr('src'); if (src && src.includes('.mp4')) videoUrl = src; }); }
-        const title = $('title').text().trim() || 'Facebook Video';
+        let title = $('title').text().trim() || 'Facebook Video';
+        // Skip invalid titles from login pages
+        const lower = title.toLowerCase();
+        if (invalidTitles.some(t => lower.includes(t))) title = 'Facebook Video';
         const thumb = $('meta[property="og:image"]').attr('content') || '';
         if (videoUrl) return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
     } catch (e) { /* fall through */ }
@@ -263,13 +267,18 @@ async function fetchTwitter(url) {
 }
 
 async function fetchInstagram(url) {
-    // Method 1: oEmbed API
+    // Method 1: oEmbed API (returns FB page now, but try anyway)
     try {
         const resp = await axios.get('https://api.instagram.com/oembed?url=' + encodeURIComponent(url), {
-            headers: { 'User-Agent': userAgent('instagram') }, timeout: 8000,
+            headers: { 'User-Agent': userAgent('instagram'), 'Accept': 'application/json' }, timeout: 8000, responseType: 'text',
         });
-        const d = resp.data;
-        return { title: d.title || 'Instagram Post', thumbnail: d.thumbnail_url || '', duration: '', platform: 'instagram', formats: [] };
+        const ct = resp.headers['content-type'] || '';
+        if (ct.includes('json')) {
+            try {
+                const d = typeof resp.data === 'string' ? JSON.parse(resp.data) : resp.data;
+                return { title: d.title || 'Instagram Post', thumbnail: d.thumbnail_url || '', duration: '', platform: 'instagram', formats: [] };
+            } catch {}
+        }
     } catch (e) { /* fall through */ }
 
     // Method 2: Scrape the page
@@ -278,39 +287,10 @@ async function fetchInstagram(url) {
             headers: { 'User-Agent': userAgent('instagram'), 'Accept': 'text/html,application/xhtml+xml' }, timeout: 8000,
         });
         const $ = cheerio.load(resp.data);
-        let videoUrl = '';
-        let thumb = $('meta[property="og:image"]').attr('content') || '';
+        const thumb = $('meta[property="og:image"]').attr('content') || '';
         let title = $('meta[property="og:title"]').attr('content') || 'Instagram Post';
-        const videoMeta = $('meta[property="og:video"]').attr('content') || '';
-        if (videoMeta) videoUrl = videoMeta;
-        const scripts = $('script[type="text/javascript"]').text();
-        const jsonMatch = scripts.match(/window\.__additionalDataLoaded\s*\([^,]+,\s*(\{.+?\})\)/s);
-        if (jsonMatch) {
-            try {
-                const data = JSON.parse(jsonMatch[1]);
-                const media = data.graphql?.shortcode_media || data.media || data.items?.[0];
-                if (media) { videoUrl = videoUrl || media.video_url || ''; thumb = thumb || media.display_url || ''; title = title || media.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post'; }
-            } catch (e) { /* ignore */ }
-        }
-        if (videoUrl) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [{ url: videoUrl, label: 'Video', format: 'mp4', type: 'video', size: 0 }] };
-    } catch (e) { /* fall through */ }
-
-    // Method 3: Imginn.com
-    try {
-        const shortcode = url.match(/instagram\.com\/p\/([^\/?#]+)/i);
-        if (shortcode) {
-            const resp = await axios.get('https://imginn.com/p/' + shortcode[1] + '/', {
-                headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'text/html,application/xhtml+xml' }, timeout: 8000,
-            });
-            const $$ = cheerio.load(resp.data);
-            const hasVideo = $$('video').length > 0 || $$('video source').length > 0;
-            const downloadLink = $$('a.download').attr('href') || '';
-            if (hasVideo && downloadLink) {
-                const igTitle = $$('meta[property="og:title"]').attr('content') || $$('h1').text().trim() || 'Instagram Video';
-                const igThumb = $$('meta[property="og:image"]').attr('content') || $$('img').first().attr('src') || '';
-                return { title: igTitle.substring(0, 200), thumbnail: igThumb, duration: '', platform: 'instagram', formats: [{ url: downloadLink, label: 'Video', format: 'mp4', type: 'video', size: 0 }] };
-            }
-        }
+        title = title.replace(/&#\d+;/g, '').trim();
+        return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
     } catch (e) { /* fall through */ }
 
     throw new Error('Could not fetch Instagram content. It may be private or unavailable.');

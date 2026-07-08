@@ -200,7 +200,7 @@ async function fetchInstagram(url) {
         } catch {}
     }
 
-    // Method 3: Scrape the page for og:image (thumbnail only)
+    // Method 3: Scrape the page for metadata
     try {
         const resp = await fetch('https://www.instagram.com/p/' + shortcode + '/', {
             headers: {
@@ -215,9 +215,7 @@ async function fetchInstagram(url) {
         if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
         const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
         if (ogTitleMatch) title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
-        if (thumb) {
-            return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
-        }
+        return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
     } catch {}
 
     throw new Error('Could not fetch Instagram content. It may be private or unavailable.');
@@ -251,7 +249,7 @@ async function fetchFacebook(url) {
         }
     } catch {}
 
-    // Method 2: Scrape mbasic with redirect following
+    // Method 2: Try mbasic with redirects (only follow mbasic URLs)
     try {
         let currentUrl = mbasicUrl;
         for (let i = 0; i < 5; i++) {
@@ -267,16 +265,20 @@ async function fetchFacebook(url) {
             if (resp.status >= 300 && resp.status < 400) {
                 const location = resp.headers.get('Location');
                 if (location) {
-                    currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
-                    continue;
+                    const nextUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
+                    if (nextUrl.includes('mbasic.facebook.com') || nextUrl.includes('facebook.com')) {
+                        currentUrl = nextUrl;
+                        continue;
+                    }
+                    break;
                 }
             }
 
             const html = await resp.text();
 
-            // Check if this is a login page
-            if (html.includes('login.php') || html.includes('Log in') || html.includes('login_form')) {
-                throw new Error('Facebook requires login to view this content');
+            // Check if login required
+            if (/login|Log in|login_form|login.php/i.test(html.substring(0, 10000))) {
+                throw new Error('Login required');
             }
 
             let videoUrl = '';
@@ -291,19 +293,13 @@ async function fetchFacebook(url) {
             }
 
             if (!videoUrl) {
-                const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/gi);
-                if (sourceMatch) {
-                    const src = sourceMatch[0].match(/src="([^"]+)"/i);
-                    if (src) videoUrl = src[1].replace(/&amp;/g, '&');
-                }
+                const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/i);
+                if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
             }
 
             if (!videoUrl) {
-                const videoSrcMatch = html.match(/<video[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/gi);
-                if (videoSrcMatch) {
-                    const src = videoSrcMatch[0].match(/src="([^"]+)"/i);
-                    if (src) videoUrl = src[1].replace(/&amp;/g, '&');
-                }
+                const srcAttrMatch = html.match(/video_redirect[^"]*src=([^"&]+)/i);
+                if (srcAttrMatch) { try { videoUrl = decodeURIComponent(srcAttrMatch[1]); } catch {} }
             }
 
             const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
@@ -315,10 +311,11 @@ async function fetchFacebook(url) {
                 return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
             }
 
+            // If we got here and it's not a login page, return what we have
             return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [] };
         }
     } catch (e) {
-        if (e.message.includes('requires login')) throw e;
+        if (e.message === 'Login required') throw new Error('Facebook requires login to view this content');
     }
 
     throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
