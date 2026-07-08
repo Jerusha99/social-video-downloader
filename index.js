@@ -349,7 +349,7 @@ app.get('/', (req, res) => {
 });
 
 const CF_WORKER_URL = process.env.CF_WORKER_URL || process.env.YT_WORKER_URL || 'https://youtubedown.jerushasharon1999.workers.dev/';
-const YTDLP_SERVER_URL = process.env.YTDLP_SERVER_URL || '';
+let baseUrl = process.env.YTDLP_SERVER_URL || '';
 
 async function fetchViaWorker(url, platform) {
     try {
@@ -363,9 +363,12 @@ async function fetchViaWorker(url, platform) {
 }
 
 async function fetchViaYtDlp(url, platform) {
-    const ytdlpUrl = YTDLP_SERVER_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL + '/api/ytdlp' : '');
-    if (!ytdlpUrl) throw new Error('yt-dlp not available');
-    const resp = await axios.post(ytdlpUrl, { url }, { timeout: 30000 });
+    if (!baseUrl) {
+        const vercelUrl = process.env.VERCEL_URL || process.env.VERCEL_BRANCH_URL || '';
+        if (vercelUrl) baseUrl = 'https://' + vercelUrl;
+    }
+    if (!baseUrl) throw new Error('yt-dlp not available');
+    const resp = await axios.post(baseUrl + '/api/ytdlp', { url }, { timeout: 30000 });
     if (resp.data.success) return resp.data.data;
     throw new Error(resp.data.error || 'yt-dlp failed');
 }
@@ -373,6 +376,7 @@ async function fetchViaYtDlp(url, platform) {
 app.post('/api/fetch', async (req, res) => {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
+    if (!baseUrl && req.headers.host) baseUrl = 'https://' + req.headers.host;
     const platform = detectPlatform(url);
     if (!platform) return res.status(400).json({ error: 'Unsupported platform' });
     try {
@@ -383,25 +387,14 @@ app.post('/api/fetch', async (req, res) => {
                 break;
             case 'tiktok': result = await fetchTikTok(url); break;
             case 'facebook':
-                try {
-                    result = await fetchViaWorker(url, 'facebook');
-                    if (!result.formats || result.formats.length === 0) {
-                        if (result.title.toLowerCase().includes('error') || result.title.toLowerCase().includes('log in')) throw new Error('Invalid worker response');
-                        try { result = await fetchViaYtDlp(url, 'facebook'); } catch {}
-                    }
-                } catch (e) {
-                    try { result = await fetchViaYtDlp(url, 'facebook'); } catch (e2) { result = await fetchFacebook(url); }
+                try { result = await fetchViaYtDlp(url, 'facebook'); } catch (e) {
+                    try { result = await fetchViaWorker(url, 'facebook'); } catch (e2) { result = await fetchFacebook(url); }
                 }
                 break;
             case 'twitter': result = await fetchTwitter(url); break;
             case 'instagram':
-                try {
-                    result = await fetchViaWorker(url, 'instagram');
-                    if (!result.formats || result.formats.length === 0) {
-                        try { result = await fetchViaYtDlp(url, 'instagram'); } catch {}
-                    }
-                } catch (e) {
-                    try { result = await fetchViaYtDlp(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
+                try { result = await fetchViaYtDlp(url, 'instagram'); } catch (e) {
+                    try { result = await fetchViaWorker(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
                 }
                 break;
             default: throw new Error('Unsupported platform');
