@@ -349,6 +349,7 @@ app.get('/', (req, res) => {
 });
 
 const CF_WORKER_URL = process.env.CF_WORKER_URL || process.env.YT_WORKER_URL || 'https://youtubedown.jerushasharon1999.workers.dev/';
+const YTDLP_SERVER_URL = process.env.YTDLP_SERVER_URL || '';
 
 async function fetchViaWorker(url, platform) {
     try {
@@ -359,6 +360,13 @@ async function fetchViaWorker(url, platform) {
         if (e.response?.data?.error) throw new Error(e.response.data.error);
         throw e;
     }
+}
+
+async function fetchViaYtDlpServer(url, platform) {
+    if (!YTDLP_SERVER_URL) throw new Error('yt-dlp server not configured');
+    const resp = await axios.post(YTDLP_SERVER_URL + '/api/fetch', { url }, { timeout: 30000 });
+    if (resp.data.success) return resp.data.data;
+    throw new Error(resp.data.error || 'yt-dlp server failed');
 }
 
 app.post('/api/fetch', async (req, res) => {
@@ -374,11 +382,15 @@ app.post('/api/fetch', async (req, res) => {
                 break;
             case 'tiktok': result = await fetchTikTok(url); break;
             case 'facebook':
-                try { result = await fetchViaWorker(url, 'facebook'); } catch (e) { result = await fetchFacebook(url); }
+                try { result = await fetchViaWorker(url, 'facebook'); } catch (e) {
+                    try { result = await fetchViaYtDlpServer(url, 'facebook'); } catch (e2) { result = await fetchFacebook(url); }
+                }
                 break;
             case 'twitter': result = await fetchTwitter(url); break;
             case 'instagram':
-                try { result = await fetchViaWorker(url, 'instagram'); } catch (e) { result = await fetchInstagram(url); }
+                try { result = await fetchViaWorker(url, 'instagram'); } catch (e) {
+                    try { result = await fetchViaYtDlpServer(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
+                }
                 break;
             default: throw new Error('Unsupported platform');
         }

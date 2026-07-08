@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ytdlp-api
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
