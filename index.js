@@ -383,13 +383,24 @@ app.post('/api/fetch', async (req, res) => {
                 break;
             case 'tiktok': result = await fetchTikTok(url); break;
             case 'facebook':
-                try { result = await fetchViaWorker(url, 'facebook'); } catch (e) {
+                try {
+                    result = await fetchViaWorker(url, 'facebook');
+                    if (!result.formats || result.formats.length === 0) {
+                        if (result.title.toLowerCase().includes('error') || result.title.toLowerCase().includes('log in')) throw new Error('Invalid worker response');
+                        try { result = await fetchViaYtDlp(url, 'facebook'); } catch {}
+                    }
+                } catch (e) {
                     try { result = await fetchViaYtDlp(url, 'facebook'); } catch (e2) { result = await fetchFacebook(url); }
                 }
                 break;
             case 'twitter': result = await fetchTwitter(url); break;
             case 'instagram':
-                try { result = await fetchViaWorker(url, 'instagram'); } catch (e) {
+                try {
+                    result = await fetchViaWorker(url, 'instagram');
+                    if (!result.formats || result.formats.length === 0) {
+                        try { result = await fetchViaYtDlp(url, 'instagram'); } catch {}
+                    }
+                } catch (e) {
                     try { result = await fetchViaYtDlp(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
                 }
                 break;
