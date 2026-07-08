@@ -259,16 +259,53 @@ async function fetchInstagram(url) {
 }
 
 async function fetchFacebook(url) {
-    // Normalize URL
-    const normalizedUrl = url
-        .replace('www.facebook.com', 'mbasic.facebook.com')
-        .replace('m.facebook.com', 'mbasic.facebook.com')
-        .replace('fb.watch', 'mbasic.facebook.com/watch');
+    const formats = [];
+    let title = 'Facebook Video';
+    let thumb = '';
 
-    const u = new URL(url);
-    const mbasicUrl = normalizedUrl.includes('mbasic.facebook.com')
-        ? normalizedUrl
-        : 'https://mbasic.facebook.com' + u.pathname + u.search;
+    // Method 0: Fetch the original URL directly (follow redirects), extract browser_native URLs from JS data
+    try {
+        const resp = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            redirect: 'follow',
+        });
+        if (resp.ok) {
+            const html = await resp.text();
+            const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+            if (ogTitleMatch) title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
+            const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+            if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
+
+            // Look for browser_native_hd_url (HD) - escaped JSON in Facebook page data
+            const hdRegex = /"browser_native_hd_url"\s*:\s*"([^"]+)"/i;
+            const sdRegex = /"browser_native_sd_url"\s*:\s*"([^"]+)"/i;
+            const hdMatch = hdRegex.exec(html);
+            const sdMatch = sdRegex.exec(html);
+
+            if (hdMatch) {
+                const videoUrl = hdMatch[1].replace(/\\\//g, '/');
+                if (videoUrl && videoUrl.length > 10) {
+                    formats.push({ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
+                }
+            }
+            if (sdMatch) {
+                const videoUrl = sdMatch[1].replace(/\\\//g, '/');
+                if (videoUrl && videoUrl.length > 10) {
+                    if (!hdMatch || videoUrl !== hdMatch[1].replace(/\\\//g, '/')) {
+                        formats.push({ url: videoUrl, label: 'SD Video', format: 'mp4', type: 'video', size: 0 });
+                    }
+                }
+            }
+
+            if (formats.length > 0) {
+                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+            }
+        }
+    } catch {}
 
     // Method 1: Try Graph API (works for public posts)
     try {
@@ -278,17 +315,24 @@ async function fetchFacebook(url) {
         if (resp.ok) {
             const d = await resp.json();
             const og = d.og_object || {};
-            const title = og.title || 'Facebook Video';
-            const thumb = (og.image && og.image[0] && og.image[0].url) || '';
+            title = og.title || title;
+            thumb = (og.image && og.image[0] && og.image[0].url) || thumb;
             const videoSrc = (og.video && og.video.url) || '';
-            const formats = videoSrc ? [{ url: videoSrc, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] : [];
-            return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats };
+            const graphFormats = videoSrc ? [{ url: videoSrc, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] : [];
+            if (graphFormats.length > 0) return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: graphFormats };
         }
     } catch {}
 
-    // Method 2: Try mbasic with redirects (only follow mbasic URLs)
+    // Method 2: Try mbasic with redirects
     try {
-        let currentUrl = mbasicUrl;
+        let currentUrl = url
+            .replace('www.facebook.com', 'mbasic.facebook.com')
+            .replace('m.facebook.com', 'mbasic.facebook.com')
+            .replace('fb.watch', 'mbasic.facebook.com/watch');
+        if (!currentUrl.includes('mbasic.facebook.com')) {
+            const u = new URL(url);
+            currentUrl = 'https://mbasic.facebook.com' + u.pathname + u.search;
+        }
         for (let i = 0; i < 5; i++) {
             const resp = await fetch(currentUrl, {
                 headers: {
@@ -312,8 +356,6 @@ async function fetchFacebook(url) {
             }
 
             const html = await resp.text();
-
-            // Check if login required
             if (/login|Log in|login_form|login.php/i.test(html.substring(0, 10000))) {
                 throw new Error('Login required');
             }
@@ -328,32 +370,29 @@ async function fetchFacebook(url) {
                     try { videoUrl = decodeURIComponent(srcMatch[1]); break; } catch {}
                 }
             }
-
             if (!videoUrl) {
                 const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/i);
                 if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
             }
-
             if (!videoUrl) {
                 const srcAttrMatch = html.match(/video_redirect[^"]*src=([^"&]+)/i);
                 if (srcAttrMatch) { try { videoUrl = decodeURIComponent(srcAttrMatch[1]); } catch {} }
             }
 
-            const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
-            const title = titleMatch ? titleMatch[1].trim() : 'Facebook Video';
-            const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-            const thumb = ogImageMatch ? ogImageMatch[1].replace(/&amp;/g, '&') : '';
+            const tMatch = html.match(/<title>([^<]*)<\/title>/i);
+            const pageTitle = tMatch ? tMatch[1].trim() : title;
+            const pageThumbMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+            const pageThumb = pageThumbMatch ? pageThumbMatch[1].replace(/&amp;/g, '&') : thumb;
 
             if (videoUrl) {
-                return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+                return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
             }
-
-            // If we got here and it's not a login page, return what we have
-            return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [] };
+            return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [] };
         }
     } catch (e) {
         if (e.message === 'Login required') throw new Error('Facebook requires login to view this content');
     }
 
-    throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
+    if (formats.length === 0) throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
+    return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
 }

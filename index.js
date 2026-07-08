@@ -187,6 +187,38 @@ async function fetchTikTok(url) {
 
 async function fetchFacebook(url) {
     const invalidTitles = ['log in', 'error', 'facebook'];
+    const formats = [];
+    let title = 'Facebook Video';
+    let thumb = '';
+
+    // Method 0: Fetch the original URL directly (follow redirects), extract browser_native URLs
+    try {
+        const resp = await axios.get(url, {
+            headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'text/html,application/xhtml+xml' },
+            timeout: 10000, maxRedirects: 5,
+        });
+        const html = resp.data;
+        const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
+        if (ogTitleMatch) title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
+        const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+        if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
+
+        const hdMatch = html.match(/"browser_native_hd_url"\s*:\s*"([^"]+)"/i);
+        const sdMatch = html.match(/"browser_native_sd_url"\s*:\s*"([^"]+)"/i);
+
+        if (hdMatch) {
+            const videoUrl = hdMatch[1].replace(/\\\//g, '/');
+            if (videoUrl && videoUrl.length > 10) formats.push({ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
+        }
+        if (sdMatch) {
+            const videoUrl = sdMatch[1].replace(/\\\//g, '/');
+            if (videoUrl && videoUrl.length > 10 && (!hdMatch || videoUrl !== hdMatch[1].replace(/\\\//g, '/'))) {
+                formats.push({ url: videoUrl, label: 'SD Video', format: 'mp4', type: 'video', size: 0 });
+            }
+        }
+        if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+    } catch (e) { /* fall through */ }
+
     // Method 1: Scrape mbasic.facebook.com
     try {
         let mobileUrl = url.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com').replace('fb.watch', 'mbasic.facebook.com/watch');
@@ -202,12 +234,11 @@ async function fetchFacebook(url) {
             if (href && href.includes('video_redirect')) { const params = new URLSearchParams(href.split('?')[1] || ''); const src = params.get('src'); if (src) videoUrl = decodeURIComponent(src); }
         });
         if (!videoUrl) { $('source').each((i, el) => { const src = $(el).attr('src'); if (src && src.includes('.mp4')) videoUrl = src; }); }
-        let title = $('title').text().trim() || 'Facebook Video';
-        // Skip invalid titles from login pages
-        const lower = title.toLowerCase();
-        if (invalidTitles.some(t => lower.includes(t))) title = 'Facebook Video';
-        const thumb = $('meta[property="og:image"]').attr('content') || '';
-        if (videoUrl) return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+        let t = $('title').text().trim() || title;
+        const lower = t.toLowerCase();
+        if (invalidTitles.some(x => lower.includes(x))) t = title;
+        const tmb = $('meta[property="og:image"]').attr('content') || thumb;
+        if (videoUrl) return { title: t, thumbnail: tmb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
     } catch (e) { /* fall through */ }
 
     // Method 2: Graph API
@@ -217,13 +248,14 @@ async function fetchFacebook(url) {
         });
         const d = resp.data;
         const og = d.og_object || {};
-        const title = og.title || 'Facebook Video';
-        const thumb = (og.image && og.image[0] && og.image[0].url) || '';
+        title = og.title || title;
+        thumb = (og.image && og.image[0] && og.image[0].url) || thumb;
         const videoSrc = (og.video && og.video.url) || '';
-        const formats = videoSrc ? [{ url: videoSrc, label: 'Video', format: 'mp4', type: 'video', size: 0 }] : [];
-        return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats };
+        if (videoSrc) formats.push({ url: videoSrc, label: 'Video', format: 'mp4', type: 'video', size: 0 });
+        if (formats.length > 0) return { title, thumbnail: thumb, duration: '', platform: 'facebook', formats };
     } catch (e) { /* fall through */ }
 
+    if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
     throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
 }
 
