@@ -362,11 +362,12 @@ async function fetchViaWorker(url, platform) {
     }
 }
 
-async function fetchViaYtDlpServer(url, platform) {
-    if (!YTDLP_SERVER_URL) throw new Error('yt-dlp server not configured');
-    const resp = await axios.post(YTDLP_SERVER_URL + '/api/fetch', { url }, { timeout: 30000 });
+async function fetchViaYtDlp(url, platform) {
+    const ytdlpUrl = YTDLP_SERVER_URL || (process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL + '/api/ytdlp' : '');
+    if (!ytdlpUrl) throw new Error('yt-dlp not available');
+    const resp = await axios.post(ytdlpUrl, { url }, { timeout: 30000 });
     if (resp.data.success) return resp.data.data;
-    throw new Error(resp.data.error || 'yt-dlp server failed');
+    throw new Error(resp.data.error || 'yt-dlp failed');
 }
 
 app.post('/api/fetch', async (req, res) => {
@@ -383,13 +384,13 @@ app.post('/api/fetch', async (req, res) => {
             case 'tiktok': result = await fetchTikTok(url); break;
             case 'facebook':
                 try { result = await fetchViaWorker(url, 'facebook'); } catch (e) {
-                    try { result = await fetchViaYtDlpServer(url, 'facebook'); } catch (e2) { result = await fetchFacebook(url); }
+                    try { result = await fetchViaYtDlp(url, 'facebook'); } catch (e2) { result = await fetchFacebook(url); }
                 }
                 break;
             case 'twitter': result = await fetchTwitter(url); break;
             case 'instagram':
                 try { result = await fetchViaWorker(url, 'instagram'); } catch (e) {
-                    try { result = await fetchViaYtDlpServer(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
+                    try { result = await fetchViaYtDlp(url, 'instagram'); } catch (e2) { result = await fetchInstagram(url); }
                 }
                 break;
             default: throw new Error('Unsupported platform');
