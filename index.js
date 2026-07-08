@@ -5,6 +5,8 @@ const cheerio = require('cheerio');
 const https = require('https');
 const path = require('path');
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+let ytdl;
+try { ytdl = require('@distube/ytdl'); } catch (e) { /* optional */ }
 
 const app = express();
 app.use(cors());
@@ -147,6 +149,32 @@ async function fetchYouTube(url) {
             return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4') };
         }
     } catch (e) { /* fall through */ }
+    // ytdl-core fallback
+    if (ytdl) {
+        try {
+            const info = await ytdl.getInfo('https://www.youtube.com/watch?v=' + videoId);
+            if (info && info.formats && info.formats.length > 0) {
+                const formats = [];
+                const seen = new Set();
+                for (const f of info.formats) {
+                    const ext = (f.container || 'mp4').toLowerCase();
+                    if (ext !== 'mp4' && ext !== 'mp3') continue;
+                    const label = f.qualityLabel || f.quality || f.audioBitrate + 'kbps' || 'audio';
+                    const type = f.hasVideo ? 'video' : 'audio';
+                    const key = label + '_' + ext;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    formats.push({ url: f.url, label, format: ext, type, size: f.contentLength || 0 });
+                }
+                if (formats.length > 0) {
+                    formats.sort((a, b) => b.size - a.size);
+                    const filtered = formats.filter(f => f.format === 'mp4' || f.format === 'mp3');
+                    const thumb = info.videoDetails?.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || '';
+                    return { title: info.videoDetails?.title || 'Untitled', thumbnail: thumb, duration: formatDuration(info.videoDetails?.lengthSeconds || 0), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats };
+                }
+            }
+        } catch (e) { /* fall through */ }
+    }
     throw new Error('Could not fetch YouTube video.');
 }
 
