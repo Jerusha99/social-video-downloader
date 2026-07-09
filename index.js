@@ -277,7 +277,6 @@ async function fetchFacebook(url) {
             timeout: 8000, maxRedirects: 5, validateStatus: s => s < 500,
         });
         const html = resp.data;
-        if (/error facebook/i.test(html.substring(0, 500))) throw new Error('Blocked');
         const $ = cheerio.load(html);
         let videoUrl = '';
         $('a[href*="video_redirect"]').each((i, el) => {
@@ -307,7 +306,7 @@ async function fetchFacebook(url) {
     } catch (e) { /* fall through */ }
 
     if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
-    throw new Error('Facebook is blocking video extraction. Try a direct Facebook video link (not share URLs) or use a non-share link.');
+    throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
 }
 
 async function fetchTwitter(url) {

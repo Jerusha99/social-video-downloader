@@ -396,52 +396,71 @@ async function fetchFacebook(url) {
         }
     } catch {}
 
-    // Method 2: Try mbasic with redirects
+    // Method 2: Try mbasic with manual redirect following
     try {
-        const mbasicUrl = url
+        let currentUrl = url
             .replace('www.facebook.com', 'mbasic.facebook.com')
             .replace('m.facebook.com', 'mbasic.facebook.com')
             .replace('fb.watch', 'mbasic.facebook.com/watch');
-        const startUrl = mbasicUrl.includes('mbasic.facebook.com') ? mbasicUrl : 'https://mbasic.facebook.com' + new URL(url).pathname + new URL(url).search;
-        const resp = await fetch(startUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml',
-                'Accept-Language': 'en-US,en;q=0.9',
-            },
-            redirect: 'follow',
-        });
-        const html = await resp.text();
-        if (/login|Log in|login_form|login\.php/i.test(html.substring(0, 10000))) {
-            throw new Error('Login required');
+        if (!currentUrl.includes('mbasic.facebook.com')) {
+            const u = new URL(url);
+            currentUrl = 'https://mbasic.facebook.com' + u.pathname + u.search;
         }
+        for (let i = 0; i < 5; i++) {
+            const resp = await fetch(currentUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
+                redirect: 'manual',
+            });
 
-        let videoUrl = '';
-        const redirectRegex = /href="([^"]*video_redirect[^"]*)"/g;
-        let match;
-        while ((match = redirectRegex.exec(html)) !== null) {
-            const href = match[1].replace(/&amp;/g, '&');
-            const srcMatch = href.match(/src=([^&]+)/);
-            if (srcMatch) {
-                try { videoUrl = decodeURIComponent(srcMatch[1]); break; } catch {}
+            if (resp.status >= 300 && resp.status < 400) {
+                const location = resp.headers.get('Location');
+                if (location) {
+                    const nextUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
+                    if (nextUrl.includes('mbasic.facebook.com') || nextUrl.includes('facebook.com')) {
+                        currentUrl = nextUrl;
+                        continue;
+                    }
+                    break;
+                }
             }
-        }
-        if (!videoUrl) {
-            const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/i);
-            if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
-        }
-        if (!videoUrl) {
-            const srcAttrMatch = html.match(/video_redirect[^"]*src=([^"&]+)/i);
-            if (srcAttrMatch) { try { videoUrl = decodeURIComponent(srcAttrMatch[1]); } catch {} }
-        }
 
-        const tMatch = html.match(/<title>([^<]*)<\/title>/i);
-        const pageTitle = tMatch ? tMatch[1].trim() : title;
-        const pageThumbMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-        const pageThumb = pageThumbMatch ? pageThumbMatch[1].replace(/&amp;/g, '&') : thumb;
+            const html = await resp.text();
+            if (/login|Log in|login_form|login\.php/i.test(html.substring(0, 10000))) {
+                throw new Error('Login required');
+            }
 
-        if (videoUrl) {
-            return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+            let videoUrl = '';
+            const redirectRegex = /href="([^"]*video_redirect[^"]*)"/g;
+            let match;
+            while ((match = redirectRegex.exec(html)) !== null) {
+                const href = match[1].replace(/&amp;/g, '&');
+                const srcMatch = href.match(/src=([^&]+)/);
+                if (srcMatch) {
+                    try { videoUrl = decodeURIComponent(srcMatch[1]); break; } catch {}
+                }
+            }
+            if (!videoUrl) {
+                const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/i);
+                if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
+            }
+            if (!videoUrl) {
+                const srcAttrMatch = html.match(/video_redirect[^"]*src=([^"&]+)/i);
+                if (srcAttrMatch) { try { videoUrl = decodeURIComponent(srcAttrMatch[1]); } catch {} }
+            }
+
+            const tMatch = html.match(/<title>([^<]*)<\/title>/i);
+            const pageTitle = tMatch ? tMatch[1].trim() : title;
+            const pageThumbMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+            const pageThumb = pageThumbMatch ? pageThumbMatch[1].replace(/&amp;/g, '&') : thumb;
+
+            if (videoUrl) {
+                return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+            }
+            return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [] };
         }
     } catch (e) {
         if (e.message === 'Login required') throw new Error('Facebook requires login to view this content');
