@@ -1,12 +1,8 @@
 {
-  "framework": null,
+  "buildCommand": "",
   "functions": {
     "api/ytdlp.py": {
-      "maxDuration": 30,
-      "includeFiles": "**"
-    },
-    "index.js": {
-      "includeFiles": "**"
+      "maxDuration": 30
     }
   }
 }
