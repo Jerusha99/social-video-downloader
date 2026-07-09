@@ -31,8 +31,21 @@
 
     <main class="container">
         <section id="tab-downloader" class="tab-content active">
-            <!-- AD: Banner 728x90 - Replace with your ad code -->
-            <div class="ad-banner" id="ad-banner-top" style="display:none;"></div>
+            <!-- AD ZONE 1: Top Banner (728x90 or responsive) - Paste banner code inside this div -->
+            <div class="ad-banner" id="ad-banner-top">
+                <script>
+                    // PASTE YOUR BANNER AD CODE HERE
+                    // PropellerAds example:
+                    // (function() {
+                    //   var banner = document.createElement('iframe');
+                    //   banner.src = '//your-propellerads-banner-url';
+                    //   banner.width = 728;
+                    //   banner.height = 90;
+                    //   banner.style.border = 'none';
+                    //   document.getElementById('ad-banner-top').appendChild(banner);
+                    // })();
+                </script>
+            </div>
             <div class="hero">
                 <div class="input-area">
                     <form id="downloadForm" method="POST" action="">
@@ -65,6 +78,13 @@
             </div>
 
             <div id="result"></div>
+
+            <!-- AD ZONE 2: Below Results (native/banner) - Paste code inside this div -->
+            <div class="ad-banner" id="ad-banner-bottom" style="margin-top:20px;">
+                <script>
+                    // PASTE YOUR BOTTOM BANNER OR NATIVE AD CODE HERE
+                </script>
+            </div>
         </section>
 
         <section id="tab-howto" class="tab-content">
@@ -151,10 +171,16 @@
         </section>
     </main>
 
-    <!-- AD: Popunder - Paste your popunder script here -->
+    <!-- ====== AD ZONE 3: POPUNDER ====== -->
+    <!-- Popunders fire once per visit in a new tab. Highest paying ad type. -->
+    <!-- Sign up at PropellerAds or PopAds, get your script, and paste it below. -->
     <script>
-        // PASTE YOUR POPUNDER SCRIPT FROM ADS NETWORK HERE
-        // Example for PropellerAds:
+        // === DELETE the example below and PASTE your PropellerAds/PopAds script here ===
+
+        // --- PropellerAds Popunder ---
+        // <script type="text/javascript" src="//propellerads.com/script.js" data-site="YOUR_SITE_ID" async></script>
+
+        // --- PopAds Popunder ---
         // var _pop = _pop || [];
         // _pop.push(['siteId', YOUR_SITE_ID]);
         // _pop.push(['minBid', 0.0000001]);
