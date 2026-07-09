@@ -383,7 +383,7 @@ const { execSync } = require('child_process');
 
 function findYtDlp() {
     const candidates = [
-        'yt-dlp', 'yt-dlp.exe', path.join(__dirname, 'bin', 'yt-dlp.exe'), path.join(__dirname, 'bin', 'yt-dlp'),
+        'yt-dlp', 'yt-dlp.exe', path.join(__dirname, '..', 'bin', 'yt-dlp.exe'), path.join(__dirname, '..', 'bin', 'yt-dlp'),
         path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Links', 'yt-dlp.exe'),
         path.join(process.env.TEMP || '', 'opencode', 'yt-dlp.exe'),
         path.join(process.env.TMP || '', 'opencode', 'yt-dlp.exe'),
@@ -419,7 +419,7 @@ async function fetchWithYtDlp(url, platform) {
     } catch (e) { throw new Error('yt-dlp failed: ' + e.message); }
 }
 
-app.use(express.static(path.join(__dirname), {
+app.use(express.static(path.join(__dirname, '..'), {
     index: 'index.html',
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
@@ -428,7 +428,7 @@ app.use(express.static(path.join(__dirname), {
 }));
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 const CF_WORKER_URL = process.env.CF_WORKER_URL || process.env.YT_WORKER_URL || 'https://youtubedown.jerushasharon1999.workers.dev/';
@@ -517,4 +517,10 @@ app.post('/api/download', (req, res) => {
     streamVideo(url, platform || 'tiktok', req, res);
 });
 
-module.exports = require('./api/index.js');
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log('Server running on http://localhost:' + PORT);
+    });
+}
+
+module.exports = app;

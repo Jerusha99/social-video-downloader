@@ -1,8 +1,10 @@
 {
-  "buildCommand": "",
   "functions": {
     "api/ytdlp.py": {
       "maxDuration": 30
+    },
+    "api/index.js": {
+      "includeFiles": "../**"
     }
   }
 }
