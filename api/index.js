@@ -192,8 +192,9 @@ async function fetchFacebook(url) {
     const formats = [];
     let title = 'Facebook Video';
     let thumb = '';
+    let description = '';
 
-    // Method 0: For share URLs, intercept redirect to get real post URL
+    // Share URL resolution: follow redirects, try mbasic, extract video URL
     async function resolveShareUrl(inputUrl) {
         try {
             const resp = await axios.get(inputUrl, {
@@ -204,7 +205,6 @@ async function fetchFacebook(url) {
                 const location = resp.headers.location;
                 if (location) return location.startsWith('http') ? location : new URL(location, inputUrl).href;
             }
-            // Try mbasic watch.php
             const watchUrl = 'https://mbasic.facebook.com/watch.php?v=' + encodeURIComponent(inputUrl);
             const watchResp = await axios.get(watchUrl, {
                 headers: { 'User-Agent': userAgent('facebook') }, timeout: 8000, validateStatus: s => s < 500,
@@ -229,13 +229,17 @@ async function fetchFacebook(url) {
                     const tmb = $('meta[property="og:image"]').attr('content') || thumb;
                     return { title: t, thumbnail: tmb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
                 }
+                const tmb = $('meta[property="og:image"]').attr('content') || thumb;
+                const t = $('title').text().trim() || title;
+                return { title: t, thumbnail: tmb, duration: '', platform: 'facebook', formats: [] };
             }
         } catch {}
         return null;
     }
     if (url.includes('/share/')) {
         const result = await resolveShareUrl(url);
-        if (result) return result;
+        if (result && result.formats.length > 0) return result;
+        if (result && result.thumbnail) { title = result.title; thumb = result.thumbnail; }
     }
 
     // Method 1: Fetch the original URL directly (follow redirects), extract browser_native URLs
@@ -250,7 +254,7 @@ async function fetchFacebook(url) {
         const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
         if (ogImageMatch) thumb = ogImageMatch[1].replace(/&amp;/g, '&');
         const ogDescMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
-        const description = ogDescMatch ? ogDescMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '') : '';
+        if (ogDescMatch) description = ogDescMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '');
 
         const hdMatch = html.match(/"browser_native_hd_url"\s*:\s*"([^"]+)"/i);
         const sdMatch = html.match(/"browser_native_sd_url"\s*:\s*"([^"]+)"/i);
@@ -290,6 +294,7 @@ async function fetchFacebook(url) {
         if (invalidTitles.some(x => lower.includes(x))) t = title;
         const tmb = $('meta[property="og:image"]').attr('content') || thumb;
         if (videoUrl) return { title: t, thumbnail: tmb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+        if (tmb) { title = t; thumb = tmb; }
     } catch (e) { /* fall through */ }
 
     // Method 3: Graph API
@@ -307,6 +312,7 @@ async function fetchFacebook(url) {
     } catch (e) { /* fall through */ }
 
     if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+    if (title && thumb) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats: [], description: description.substring(0, 300) || 'Facebook is not accessible. Try a direct video link instead.' };
     throw new Error('Facebook is blocking video extraction. Try a direct Facebook video link (not share URLs) or use a non-share link.');
 }
 
@@ -585,6 +591,7 @@ app.get('/api/download', async (req, res) => {
     const url = req.query.url;
     const platform = req.query.platform || '';
     if (!url) return res.status(400).json({ error: 'url parameter required' });
+    // For YouTube, get fresh URL and 302 redirect (avoids Vercel IP 403 issue)
     if (platform === 'youtube') {
         const originalUrl = req.query.v;
         const fmtLabel = req.query.fmt;
@@ -593,10 +600,11 @@ app.get('/api/download', async (req, res) => {
                 const result = await fetchYouTube(originalUrl);
                 const format = result.formats.find(f => f.label === fmtLabel);
                 if (format && format.url) {
-                    return streamVideo(format.url, 'youtube', req, res);
+                    return res.redirect(302, format.url);
                 }
-            } catch (e) { /* fall through to CDN URL */ }
+            } catch (e) { /* fall through */ }
         }
+        return res.redirect(302, url);
     }
     streamVideo(url, platform || 'tiktok', req, res);
 });

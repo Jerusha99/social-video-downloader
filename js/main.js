@@ -98,18 +98,24 @@
             }).map(f => {
                 if (!f.url) return '';
                 const icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
-                const needsProxy = ['youtube', 'tiktok', 'facebook', 'instagram'].includes(platform);
-                let href;
-                if (needsProxy) {
+                const isYoutube = platform === 'youtube';
+                const needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
+                let href, extraClass, extraAttrs;
+                if (isYoutube) {
+                    href = '/api/download?url=' + encodeURIComponent(f.url) + '&platform=youtube' +
+                        (originalUrl ? '&v=' + encodeURIComponent(originalUrl) + '&fmt=' + encodeURIComponent(f.label) : '');
+                    extraClass = ' youtube-dl-btn';
+                    extraAttrs = ' data-video-label="' + escapeHtml(f.label) + '"';
+                } else if (needsProxy) {
                     href = '/api/download?url=' + encodeURIComponent(f.url) + '&platform=' + escapeHtml(platform);
-                    if (platform === 'youtube' && originalUrl) {
-                        href += '&v=' + encodeURIComponent(originalUrl) + '&fmt=' + encodeURIComponent(f.label);
-                    }
+                    extraClass = '';
+                    extraAttrs = '';
                 } else {
                     href = f.url;
+                    extraClass = '';
+                    extraAttrs = ' target="_blank"';
                 }
-                const target = needsProxy ? '' : ' target="_blank"';
-                return '<a href="' + href + '" class="download-btn"' + target + ' rel="noopener">' +
+                return '<a href="' + href + '" class="download-btn' + extraClass + '"' + extraAttrs + ' rel="noopener">' +
                     '<i class="fas ' + icon + '"></i>' +
                     '<span class="quality">' + escapeHtml(f.label || 'Download') + '</span>' +
                     '<span class="format">' + escapeHtml(f.format || '') + '</span>' +
@@ -146,6 +152,39 @@
         div.textContent = str;
         return div.innerHTML;
     }
+
+    // === YouTube force-download: fetch follows 302 to CDN, pipe to blob ===
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.youtube-dl-btn');
+        if (btn) {
+            e.preventDefault();
+            const href = btn.getAttribute('href');
+            const label = btn.getAttribute('data-video-label') || 'video';
+            const filename = 'youtube-' + label.replace(/[^a-zA-Z0-9]/g, '_') + '.mp4';
+            btn.classList.add('loading');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner"></i> Downloading...';
+            try {
+                const resp = await fetch(href);
+                if (resp.ok) {
+                    const blob = await resp.blob();
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                    btn.innerHTML = '<i class="fas fa-check"></i> Downloaded';
+                    setTimeout(() => { btn.innerHTML = origHtml; btn.classList.remove('loading'); }, 3000);
+                    return;
+                }
+            } catch {}
+            btn.innerHTML = origHtml;
+            btn.classList.remove('loading');
+            window.open(href, '_blank');
+        }
+    });
 
     // === FAQ Accordion (delegated) ===
     document.addEventListener('click', function (e) {
