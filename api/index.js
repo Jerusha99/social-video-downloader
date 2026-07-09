@@ -36,7 +36,12 @@ function extractYouTubeId(url) {
     const u = new URL(url);
     const host = u.hostname.toLowerCase();
     if (host.includes('youtu.be')) return u.pathname.slice(1).split('?')[0] || null;
-    if (host.includes('youtube.com')) return u.searchParams.get('v');
+    if (host.includes('youtube.com')) {
+        const v = u.searchParams.get('v');
+        if (v) return v;
+        const match = u.pathname.match(/\/(?:shorts|embed|watch|v)\/([^\/?#]+)/);
+        if (match) return match[1];
+    }
     return null;
 }
 
@@ -437,7 +442,7 @@ async function fetchInstagram(url) {
         title = title.replace(/&#\d+;/g, '').trim();
         const genericTitles = ['instagram post', 'instagram video', 'instagram photo', ''];
         if (genericTitles.includes(title.toLowerCase().trim())) title = 'Instagram Post';
-        return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
+        if (thumb) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
     } catch (e) { /* fall through */ }
 
     // Method 5: Try alternative Instagram image proxy for at least thumbnail
@@ -451,6 +456,35 @@ async function fetchInstagram(url) {
                 const thumb = m.display_url || m.thumbnail_src || '';
                 const title = m.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post';
                 return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
+            }
+        } catch {}
+    }
+
+    // Method 6: downloadgram.app (most reliable for video, works from any IP)
+    if (shortcode) {
+        try {
+            const resp = await axios.post('https://api.downloadgram.app/media', 'url=https://www.instagram.com/reel/' + shortcode + '/', {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': userAgent('desktop'), 'Referer': 'https://downloadgram.app/' },
+                timeout: 15000,
+                responseType: 'text',
+            });
+            const text = resp.data;
+            if (text && typeof text === 'string') {
+                const htmlMatch = text.match(/innerHTML'\]='([^']*)'/);
+                if (htmlMatch) {
+                    const html = htmlMatch[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+                    const linkMatch = html.match(/href="([^"]*)"[^>]*>/i);
+                    const imgMatch = html.match(/<img[^>]*src="([^"]+)"[^>]*>/i);
+                    const titleMatch = html.match(/alt="([^"]*)"/i);
+                    if (linkMatch && !linkMatch[1].includes('facebook.com') && !linkMatch[1].includes('instagram.com')) {
+                        const videoUrl = linkMatch[1].replace(/&amp;/g, '&');
+                        const thumb = imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : '';
+                        const rawTitle = titleMatch ? titleMatch[1] : '';
+                        const genericTitles = ['thumb', 'image', 'video', 'photo', 'download', 'instagram video', 'instagram photo', ''];
+                        const title = genericTitles.includes(rawTitle.toLowerCase().trim()) ? 'Instagram Video' : rawTitle;
+                        return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+                    }
+                }
             }
         } catch {}
     }
