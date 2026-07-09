@@ -89,6 +89,7 @@
         const formats = data.formats || [];
         const hasValidFormats = formats.length > 0;
         const platform = (data.platform || '').toLowerCase();
+        const isYoutube = platform === 'youtube';
         let formatsHtml = '';
 
         if (hasValidFormats) {
@@ -98,7 +99,6 @@
             }).map(f => {
                 if (!f.url) return '';
                 const icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
-                const isYoutube = platform === 'youtube';
                 const needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
                 let href, extraClass, extraAttrs;
                 if (isYoutube) {
