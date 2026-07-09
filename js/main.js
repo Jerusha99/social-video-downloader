@@ -98,7 +98,7 @@
             }).map(f => {
                 if (!f.url) return '';
                 const icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
-                const needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
+                const needsProxy = ['youtube', 'tiktok', 'facebook', 'instagram'].includes(platform);
                 const href = needsProxy
                     ? '/api/download?url=' + encodeURIComponent(f.url) + '&platform=' + escapeHtml(platform)
                     : f.url;

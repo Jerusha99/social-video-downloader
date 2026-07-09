@@ -286,13 +286,66 @@ async function fetchFacebook(url) {
     let title = 'Facebook Video';
     let thumb = '';
 
+    // Method -1: For share URLs, intercept redirect to get real post URL
+    async function resolveShareUrl(inputUrl) {
+        try {
+            const resp = await fetch(inputUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'DNT': '1',
+                    'Upgrade-Insecure-Requests': '1',
+                },
+                redirect: 'manual',
+            });
+            if (resp.status >= 300 && resp.status < 400) {
+                const location = resp.headers.get('Location');
+                if (location) return location.startsWith('http') ? location : new URL(location, inputUrl).href;
+            }
+            // Try mbasic watch.php with original URL encoded
+            if (inputUrl.includes('/share/')) {
+                const watchUrl = 'https://mbasic.facebook.com/watch.php?v=' + encodeURIComponent(inputUrl);
+                const watchResp = await fetch(watchUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36' },
+                    redirect: 'follow',
+                });
+                if (watchResp.ok) {
+                    const html = await watchResp.text();
+                    const redirectRegex = /href="\/video_redirect\/\?src=([^"]+)"/g;
+                    let match;
+                    while ((match = redirectRegex.exec(html)) !== null) {
+                        try {
+                            const videoUrl = decodeURIComponent(match[1]);
+                            if (videoUrl.includes('.mp4')) {
+                                formats.push({ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
+                            }
+                        } catch {}
+                    }
+                    const tMatch = html.match(/<title>([^<]*)<\/title>/i);
+                    const pageTitle = tMatch ? tMatch[1].trim() : title;
+                    const ogImage = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+                    const pageThumb = ogImage ? ogImage[1] : thumb;
+                    if (formats.length > 0) return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats };
+                }
+            }
+        } catch {}
+        return null;
+    }
+    if (url.includes('/share/')) {
+        const result = await resolveShareUrl(url);
+        if (result) return result;
+    }
+
     // Method 0: Fetch the original URL directly (follow redirects), extract browser_native URLs from JS data
     try {
         const resp = await fetch(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.9',
+                'DNT': '1',
+                'Upgrade-Insecure-Requests': '1',
             },
             redirect: 'follow',
         });
@@ -345,74 +398,55 @@ async function fetchFacebook(url) {
 
     // Method 2: Try mbasic with redirects
     try {
-        let currentUrl = url
+        const mbasicUrl = url
             .replace('www.facebook.com', 'mbasic.facebook.com')
             .replace('m.facebook.com', 'mbasic.facebook.com')
             .replace('fb.watch', 'mbasic.facebook.com/watch');
-        if (!currentUrl.includes('mbasic.facebook.com')) {
-            const u = new URL(url);
-            currentUrl = 'https://mbasic.facebook.com' + u.pathname + u.search;
+        const startUrl = mbasicUrl.includes('mbasic.facebook.com') ? mbasicUrl : 'https://mbasic.facebook.com' + new URL(url).pathname + new URL(url).search;
+        const resp = await fetch(startUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            redirect: 'follow',
+        });
+        const html = await resp.text();
+        if (/login|Log in|login_form|login\.php/i.test(html.substring(0, 10000))) {
+            throw new Error('Login required');
         }
-        for (let i = 0; i < 5; i++) {
-            const resp = await fetch(currentUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                },
-                redirect: 'manual',
-            });
 
-            if (resp.status >= 300 && resp.status < 400) {
-                const location = resp.headers.get('Location');
-                if (location) {
-                    const nextUrl = location.startsWith('http') ? location : new URL(location, currentUrl).href;
-                    if (nextUrl.includes('mbasic.facebook.com') || nextUrl.includes('facebook.com')) {
-                        currentUrl = nextUrl;
-                        continue;
-                    }
-                    break;
-                }
+        let videoUrl = '';
+        const redirectRegex = /href="([^"]*video_redirect[^"]*)"/g;
+        let match;
+        while ((match = redirectRegex.exec(html)) !== null) {
+            const href = match[1].replace(/&amp;/g, '&');
+            const srcMatch = href.match(/src=([^&]+)/);
+            if (srcMatch) {
+                try { videoUrl = decodeURIComponent(srcMatch[1]); break; } catch {}
             }
+        }
+        if (!videoUrl) {
+            const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/i);
+            if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
+        }
+        if (!videoUrl) {
+            const srcAttrMatch = html.match(/video_redirect[^"]*src=([^"&]+)/i);
+            if (srcAttrMatch) { try { videoUrl = decodeURIComponent(srcAttrMatch[1]); } catch {} }
+        }
 
-            const html = await resp.text();
-            if (/login|Log in|login_form|login.php/i.test(html.substring(0, 10000))) {
-                throw new Error('Login required');
-            }
+        const tMatch = html.match(/<title>([^<]*)<\/title>/i);
+        const pageTitle = tMatch ? tMatch[1].trim() : title;
+        const pageThumbMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+        const pageThumb = pageThumbMatch ? pageThumbMatch[1].replace(/&amp;/g, '&') : thumb;
 
-            let videoUrl = '';
-            const redirectRegex = /href="([^"]*video_redirect[^"]*)"/g;
-            let match;
-            while ((match = redirectRegex.exec(html)) !== null) {
-                const href = match[1].replace(/&amp;/g, '&');
-                const srcMatch = href.match(/src=([^&]+)/);
-                if (srcMatch) {
-                    try { videoUrl = decodeURIComponent(srcMatch[1]); break; } catch {}
-                }
-            }
-            if (!videoUrl) {
-                const sourceMatch = html.match(/<source[^>]*src="([^"]+\.mp4[^"]*)"[^>]*>/i);
-                if (sourceMatch) videoUrl = sourceMatch[1].replace(/&amp;/g, '&');
-            }
-            if (!videoUrl) {
-                const srcAttrMatch = html.match(/video_redirect[^"]*src=([^"&]+)/i);
-                if (srcAttrMatch) { try { videoUrl = decodeURIComponent(srcAttrMatch[1]); } catch {} }
-            }
-
-            const tMatch = html.match(/<title>([^<]*)<\/title>/i);
-            const pageTitle = tMatch ? tMatch[1].trim() : title;
-            const pageThumbMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-            const pageThumb = pageThumbMatch ? pageThumbMatch[1].replace(/&amp;/g, '&') : thumb;
-
-            if (videoUrl) {
-                return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
-            }
-            return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [] };
+        if (videoUrl) {
+            return { title: pageTitle, thumbnail: pageThumb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
         }
     } catch (e) {
         if (e.message === 'Login required') throw new Error('Facebook requires login to view this content');
     }
 
-    if (formats.length === 0) throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
-    return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+    if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
+    throw new Error('Facebook is blocking video extraction. Try a different URL (non-share links work better) or use a direct Facebook video link.');
 }

@@ -188,16 +188,61 @@ async function fetchTikTok(url) {
 }
 
 async function fetchFacebook(url) {
-    const invalidTitles = ['log in', 'error', 'facebook'];
+    const invalidTitles = ['log in', 'error facebook'];
     const formats = [];
     let title = 'Facebook Video';
     let thumb = '';
 
-    // Method 0: Fetch the original URL directly (follow redirects), extract browser_native URLs
+    // Method 0: For share URLs, intercept redirect to get real post URL
+    async function resolveShareUrl(inputUrl) {
+        try {
+            const resp = await axios.get(inputUrl, {
+                headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'text/html,application/xhtml+xml,image/avif,image/webp,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9', 'DNT': '1', 'Upgrade-Insecure-Requests': '1' },
+                maxRedirects: 0, timeout: 8000, validateStatus: s => true,
+            });
+            if (resp.status >= 300 && resp.status < 400) {
+                const location = resp.headers.location;
+                if (location) return location.startsWith('http') ? location : new URL(location, inputUrl).href;
+            }
+            // Try mbasic watch.php
+            const watchUrl = 'https://mbasic.facebook.com/watch.php?v=' + encodeURIComponent(inputUrl);
+            const watchResp = await axios.get(watchUrl, {
+                headers: { 'User-Agent': userAgent('facebook') }, timeout: 8000, validateStatus: s => s < 500,
+            });
+            if (watchResp.status === 200 && !/error facebook/i.test(watchResp.data.substring(0, 500))) {
+                const html = watchResp.data;
+                const $ = cheerio.load(html);
+                let videoUrl = '';
+                $('a[href*="video_redirect"]').each((i, el) => {
+                    const href = $(el).attr('href');
+                    if (href && href.includes('video_redirect')) {
+                        const params = new URLSearchParams(href.split('?')[1] || '');
+                        const src = params.get('src');
+                        if (src) videoUrl = decodeURIComponent(src);
+                    }
+                });
+                if (!videoUrl) {
+                    $('source').each((i, el) => { const src = $(el).attr('src'); if (src && src.includes('.mp4')) videoUrl = src; });
+                }
+                if (videoUrl) {
+                    const t = $('title').text().trim() || title;
+                    const tmb = $('meta[property="og:image"]').attr('content') || thumb;
+                    return { title: t, thumbnail: tmb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
+                }
+            }
+        } catch {}
+        return null;
+    }
+    if (url.includes('/share/')) {
+        const result = await resolveShareUrl(url);
+        if (result) return result;
+    }
+
+    // Method 1: Fetch the original URL directly (follow redirects), extract browser_native URLs
     try {
         const resp = await axios.get(url, {
             headers: { 'User-Agent': userAgent('desktop'), 'Accept': 'text/html,application/xhtml+xml' },
-            timeout: 10000, maxRedirects: 5,
+            timeout: 10000, maxRedirects: 5, validateStatus: s => s < 500,
         });
         const html = resp.data;
         const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
@@ -223,15 +268,17 @@ async function fetchFacebook(url) {
         if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats, description: description.substring(0, 300) };
     } catch (e) { /* fall through */ }
 
-    // Method 1: Scrape mbasic.facebook.com
+    // Method 2: Scrape mbasic.facebook.com
     try {
         let mobileUrl = url.replace('www.facebook.com', 'mbasic.facebook.com').replace('m.facebook.com', 'mbasic.facebook.com').replace('fb.watch', 'mbasic.facebook.com/watch');
         if (!mobileUrl.includes('mbasic.facebook.com')) { const u = new URL(url); mobileUrl = 'https://mbasic.facebook.com' + u.pathname + u.search; }
         const resp = await axios.get(mobileUrl, {
             headers: { 'User-Agent': userAgent('facebook'), 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9', 'Cookie': 'locale=en_US;' },
-            timeout: 8000, maxRedirects: 5,
+            timeout: 8000, maxRedirects: 5, validateStatus: s => s < 500,
         });
-        const $ = cheerio.load(resp.data);
+        const html = resp.data;
+        if (/error facebook/i.test(html.substring(0, 500))) throw new Error('Blocked');
+        const $ = cheerio.load(html);
         let videoUrl = '';
         $('a[href*="video_redirect"]').each((i, el) => {
             const href = $(el).attr('href');
@@ -245,7 +292,7 @@ async function fetchFacebook(url) {
         if (videoUrl) return { title: t, thumbnail: tmb, duration: '', platform: 'facebook', formats: [{ url: videoUrl, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }] };
     } catch (e) { /* fall through */ }
 
-    // Method 2: Graph API
+    // Method 3: Graph API
     try {
         const resp = await axios.get('https://graph.facebook.com/v19.0/?id=' + encodeURIComponent(url) + '&fields=og_object{title,image,video}', {
             headers: { 'User-Agent': userAgent('desktop') }, timeout: 8000,
@@ -260,7 +307,7 @@ async function fetchFacebook(url) {
     } catch (e) { /* fall through */ }
 
     if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'facebook', formats };
-    throw new Error('Could not fetch Facebook video. It may be private or unavailable.');
+    throw new Error('Facebook is blocking video extraction. Try a direct Facebook video link (not share URLs) or use a non-share link.');
 }
 
 async function fetchTwitter(url) {
