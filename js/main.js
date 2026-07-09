@@ -48,7 +48,7 @@
                 removeLoading();
 
                 if (json.success) {
-                    renderResult(json.data);
+                    renderResult(json.data, url);
                 } else {
                     renderError(json.error || 'Failed to fetch video.');
                 }
@@ -82,7 +82,7 @@
         resultContainer.appendChild(el);
     }
 
-    function renderResult(data) {
+    function renderResult(data, originalUrl) {
         const el = document.createElement('div');
         el.className = 'result success';
 
@@ -98,12 +98,18 @@
             }).map(f => {
                 if (!f.url) return '';
                 const icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
-                const needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
-                const href = needsProxy
-                    ? '/api/download?url=' + encodeURIComponent(f.url) + '&platform=' + escapeHtml(platform)
-                    : f.url;
-                return '<a href="' + href + '" class="download-btn" ' +
-                    (needsProxy ? '' : 'target="_blank" ') + 'rel="noopener">' +
+                const needsProxy = ['youtube', 'tiktok', 'facebook', 'instagram'].includes(platform);
+                let href;
+                if (needsProxy) {
+                    href = '/api/download?url=' + encodeURIComponent(f.url) + '&platform=' + escapeHtml(platform);
+                    if (platform === 'youtube' && originalUrl) {
+                        href += '&v=' + encodeURIComponent(originalUrl) + '&fmt=' + encodeURIComponent(f.label);
+                    }
+                } else {
+                    href = f.url;
+                }
+                const target = needsProxy ? '' : ' target="_blank"';
+                return '<a href="' + href + '" class="download-btn"' + target + ' rel="noopener">' +
                     '<i class="fas ' + icon + '"></i>' +
                     '<span class="quality">' + escapeHtml(f.label || 'Download') + '</span>' +
                     '<span class="format">' + escapeHtml(f.format || '') + '</span>' +

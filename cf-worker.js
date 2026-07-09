@@ -161,13 +161,13 @@ async function fetchInstagram(url) {
 
     // Method 2: Try different GraphQL query hashes
     const queryHashes = [
-        '2efa0f37edf79b2eefbae5e3dd0b4f4d',  // old
-        '477b7c6a1b1270a548210be15406b4d2',  // alternative
-        '2b0673fb2bb132f59b6c9b5dbd402db6',  // another
+        { hash: '2efa0f37edf79b2eefbae5e3dd0b4f4d', desc: 'old' },
+        { hash: 'b3055c01b4b222b8a47dc12b090e4e64', desc: 'alt1' },
+        { hash: '477b7c6a1b1270a548210be15406b4d2', desc: 'alt2' },
     ];
     for (const qh of queryHashes) {
         try {
-            const resp = await fetch('https://www.instagram.com/graphql/query/?query_hash=' + qh + '&variables=' + encodeURIComponent(JSON.stringify({
+            const resp = await fetch('https://www.instagram.com/graphql/query/?query_hash=' + qh.hash + '&variables=' + encodeURIComponent(JSON.stringify({
                 shortcode: shortcode,
                 child_comment_count: 0, fetch_comment_count: 0, parent_comment_count: 0, has_threaded_comments: false,
             })), {
@@ -181,12 +181,10 @@ async function fetchInstagram(url) {
                 const data = await resp.json();
                 const media = data?.data?.shortcode_media;
                 if (media) {
-                    const isVideo = media.is_video || media.__typename === 'GraphVideo' || media.__typename === 'GraphSidecar';
                     const formats = [];
                     if (media.video_url) {
                         formats.push({ url: media.video_url, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
                     }
-                    // Handle sidecar (multiple media)
                     if (media.__typename === 'GraphSidecar' && media.edge_sidecar_to_children?.edges) {
                         for (const edge of media.edge_sidecar_to_children.edges) {
                             const node = edge.node;
@@ -202,6 +200,40 @@ async function fetchInstagram(url) {
             }
         } catch {}
     }
+
+    // Method 2b: GraphQL with doc_id (persisted query)
+    try {
+        const docId = '8845758582119845';
+        const variables = { shortcode, fetch_tagged_user_count: null, hoisted_comment_id: null, hoisted_reply_id: null };
+        const formBody = new URLSearchParams({
+            av: '0', __d: 'www', __user: '0', __a: '1', __req: 'b', dpr: '3',
+            variables: JSON.stringify(variables),
+            server_timestamps: 'true',
+            doc_id: docId,
+        }).toString();
+        const resp = await fetch('https://www.instagram.com/graphql/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/125.0.6422.165 Mobile Safari/537.36',
+                'X-FB-Friendly-Name': 'PolarisPostActionLoadPostQueryQuery',
+                'X-IG-App-ID': '1217981644879628',
+            },
+            body: formBody,
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            const media = data?.data?.shortcode_media;
+            if (media) {
+                const formats = [];
+                if (media.video_url) formats.push({ url: media.video_url, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
+                const thumb = media.display_url || media.thumbnail_src || '';
+                const title = media.edge_media_to_caption?.edges?.[0]?.node?.text || media.accessibility_caption || 'Instagram Video';
+                if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+            }
+        }
+    } catch {}
 
     // Method 3: Try downloadgram.app proxy (gets actual video URL)
     let downloadgramResult = null;
@@ -220,13 +252,15 @@ async function fetchInstagram(url) {
             const htmlMatch = text.match(/innerHTML'\]='([^']*)'/);
             if (htmlMatch) {
                 const html = htmlMatch[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-                const linkMatch = html.match(/href="([^"]*cdn\.downloadgram\.app[^"]*)"/i);
-                const thumbMatch = html.match(/src="([^"]*cdn\.downloadgram\.app[^"]*)"/i);
+                const linkMatch = html.match(/href="([^"]*)"[^>]*>/i);
+                const imgMatch = html.match(/<img[^>]*src="([^"]+)"[^>]*>/i);
                 const titleMatch = html.match(/alt="([^"]*)"/i);
-                if (linkMatch) {
+                if (linkMatch && !linkMatch[1].includes('facebook.com') && !linkMatch[1].includes('instagram.com')) {
                     const videoUrl = linkMatch[1].replace(/&amp;/g, '&');
-                    const thumb = thumbMatch ? thumbMatch[1].replace(/&amp;/g, '&') : '';
-                    const title = titleMatch ? titleMatch[1] : 'Instagram Video';
+                    const thumb = imgMatch ? imgMatch[1].replace(/&amp;/g, '&') : '';
+                    const rawTitle = titleMatch ? titleMatch[1] : '';
+                    const genericTitles = ['thumb', 'image', 'video', 'photo', 'download', 'instagram video', 'instagram photo', ''];
+                    const title = genericTitles.includes(rawTitle.toLowerCase().trim()) ? 'Instagram Video' : rawTitle;
                     downloadgramResult = {
                         title: title.substring(0, 200),
                         thumbnail: thumb,
@@ -252,7 +286,8 @@ async function fetchInstagram(url) {
                 const html = await resp.text();
                 const ogTitleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i);
                 if (ogTitleMatch) downloadgramResult.title = ogTitleMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '').substring(0, 200);
-                // Some Instagram pages still have description via og:description on server-rendered pages
+                const ogImageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+                if (!downloadgramResult.thumbnail && ogImageMatch) downloadgramResult.thumbnail = ogImageMatch[1].replace(/&amp;/g, '&');
                 const ogDescMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
                 if (ogDescMatch) downloadgramResult.description = ogDescMatch[1].replace(/&amp;/g, '&').replace(/&#\d+;/g, '').substring(0, 300);
             }

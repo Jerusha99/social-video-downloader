@@ -350,6 +350,9 @@ async function fetchTwitter(url) {
 }
 
 async function fetchInstagram(url) {
+    const shortcodeMatch = url.match(/(?:instagram\.com(?:\/[a-z]+)?)\/(p|reel|tv)\/([^\/?#]+)/i);
+    const shortcode = shortcodeMatch ? shortcodeMatch[2] : null;
+
     // Method 1: oEmbed API (returns FB page now, but try anyway)
     try {
         const resp = await axios.get('https://api.instagram.com/oembed?url=' + encodeURIComponent(url), {
@@ -364,7 +367,60 @@ async function fetchInstagram(url) {
         }
     } catch (e) { /* fall through */ }
 
-    // Method 2: Scrape the page
+    // Method 2: GraphQL with query hashes (multi-client approach)
+    if (shortcode) {
+        const igHeaders = { 'User-Agent': userAgent('instagram'), 'Accept': 'application/json', 'Accept-Language': 'en-US,en;q=0.9' };
+        const queryHashes = [
+            { hash: '2efa0f37edf79b2eefbae5e3dd0b4f4d', desc: 'old' },
+            { hash: 'b3055c01b4b222b8a47dc12b090e4e64', desc: 'alt1' },
+            { hash: '477b7c6a1b1270a548210be15406b4d2', desc: 'alt2' },
+        ];
+        for (const qh of queryHashes) {
+            try {
+                const resp = await axios.get('https://www.instagram.com/graphql/query/?query_hash=' + qh.hash + '&variables=' + encodeURIComponent(JSON.stringify({ shortcode, child_comment_count: 0, fetch_comment_count: 0, parent_comment_count: 0, has_threaded_comments: false })), {
+                    headers: igHeaders, timeout: 8000,
+                });
+                const data = resp.data;
+                const media = data?.data?.shortcode_media;
+                if (media) {
+                    const formats = [];
+                    if (media.video_url) { formats.push({ url: media.video_url, label: 'HD Video', format: 'mp4', type: 'video', size: 0 }); }
+                    if (media.__typename === 'GraphSidecar' && media.edge_sidecar_to_children?.edges) {
+                        for (const edge of media.edge_sidecar_to_children.edges) {
+                            if (edge.node.is_video && edge.node.video_url) { formats.push({ url: edge.node.video_url, label: 'Video', format: 'mp4', type: 'video', size: 0 }); }
+                        }
+                    }
+                    const title = media.edge_media_to_caption?.edges?.[0]?.node?.text || media.accessibility_caption || 'Instagram Video';
+                    const thumb = media.display_url || media.thumbnail_src || '';
+                    if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+                    return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+                }
+            } catch (e) { /* fall through */ }
+        }
+
+        // Method 3: GraphQL with doc_id (persisted query approach)
+        try {
+            const docId = '8845758582119845';
+            const variables = { shortcode, fetch_tagged_user_count: null, hoisted_comment_id: null, hoisted_reply_id: null };
+            const formBody = 'av=0&__d=www&__user=0&__a=1&__req=b&dpr=3&variables=' + encodeURIComponent(JSON.stringify(variables)) + '&server_timestamps=true&doc_id=' + docId;
+            const resp = await axios.post('https://www.instagram.com/graphql/query', formBody, {
+                headers: { ...igHeaders, 'Content-Type': 'application/x-www-form-urlencoded', 'X-FB-Friendly-Name': 'PolarisPostActionLoadPostQueryQuery', 'X-IG-App-ID': '1217981644879628' },
+                timeout: 8000,
+            });
+            const data = resp.data;
+            if (data?.data?.shortcode_media) {
+                const media = data.data.shortcode_media;
+                const formats = [];
+                if (media.video_url) formats.push({ url: media.video_url, label: 'HD Video', format: 'mp4', type: 'video', size: 0 });
+                const thumb = media.display_url || media.thumbnail_src || '';
+                const title = media.edge_media_to_caption?.edges?.[0]?.node?.text || media.accessibility_caption || 'Instagram Video';
+                if (formats.length > 0) return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats };
+            }
+        } catch (e) { /* fall through */ }
+    }
+
+    // Method 4: Scrape the page for og:image (thumbnail only)
     try {
         const resp = await axios.get(url, {
             headers: { 'User-Agent': userAgent('instagram'), 'Accept': 'text/html,application/xhtml+xml' }, timeout: 8000,
@@ -373,8 +429,25 @@ async function fetchInstagram(url) {
         const thumb = $('meta[property="og:image"]').attr('content') || '';
         let title = $('meta[property="og:title"]').attr('content') || 'Instagram Post';
         title = title.replace(/&#\d+;/g, '').trim();
+        const genericTitles = ['instagram post', 'instagram video', 'instagram photo', ''];
+        if (genericTitles.includes(title.toLowerCase().trim())) title = 'Instagram Post';
         return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
     } catch (e) { /* fall through */ }
+
+    // Method 5: Try alternative Instagram image proxy for at least thumbnail
+    if (shortcode) {
+        try {
+            const resp = await axios.get('https://www.instagram.com/p/' + shortcode + '/?__a=1', {
+                headers: { 'User-Agent': userAgent('instagram'), 'Accept': 'application/json' }, timeout: 5000,
+            });
+            if (resp.data?.graphql?.shortcode_media) {
+                const m = resp.data.graphql.shortcode_media;
+                const thumb = m.display_url || m.thumbnail_src || '';
+                const title = m.edge_media_to_caption?.edges?.[0]?.node?.text || 'Instagram Post';
+                return { title: title.substring(0, 200), thumbnail: thumb, duration: '', platform: 'instagram', formats: [] };
+            }
+        } catch {}
+    }
 
     throw new Error('Could not fetch Instagram content. It may be private or unavailable.');
 }
@@ -437,7 +510,10 @@ let baseUrl = process.env.YTDLP_SERVER_URL || '';
 async function fetchViaWorker(url, platform) {
     try {
         const resp = await axios.post(CF_WORKER_URL, { url }, { timeout: 15000 });
-        if (resp.data.success) return resp.data.data;
+        if (resp.data.success) {
+            if (resp.data.data.formats && resp.data.data.formats.length > 0) return resp.data.data;
+            throw new Error('Worker returned no downloadable formats');
+        }
         throw new Error(resp.data.error || 'Worker failed');
     } catch (e) {
         if (e.response?.data?.error) throw new Error(e.response.data.error);
@@ -505,10 +581,24 @@ async function streamVideo(videoUrl, platform, req, res) {
     } catch (e) { res.status(502).json({ error: 'Download failed: ' + e.message }); }
 }
 
-app.get('/api/download', (req, res) => {
+app.get('/api/download', async (req, res) => {
     const url = req.query.url;
+    const platform = req.query.platform || '';
     if (!url) return res.status(400).json({ error: 'url parameter required' });
-    streamVideo(url, req.query.platform || 'tiktok', req, res);
+    if (platform === 'youtube') {
+        const originalUrl = req.query.v;
+        const fmtLabel = req.query.fmt;
+        if (originalUrl && fmtLabel) {
+            try {
+                const result = await fetchYouTube(originalUrl);
+                const format = result.formats.find(f => f.label === fmtLabel);
+                if (format && format.url) {
+                    return streamVideo(format.url, 'youtube', req, res);
+                }
+            } catch (e) { /* fall through to CDN URL */ }
+        }
+    }
+    streamVideo(url, platform || 'tiktok', req, res);
 });
 
 app.post('/api/download', (req, res) => {
