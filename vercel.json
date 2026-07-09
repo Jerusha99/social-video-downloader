@@ -3,9 +3,14 @@
     "api/index.js": {
       "memory": 256,
       "maxDuration": 30
+    },
+    "api/ytdlp.py": {
+      "memory": 512,
+      "maxDuration": 30
     }
   },
   "rewrites": [
+    { "source": "/api/ytdlp", "destination": "/api/ytdlp" },
     { "source": "/(.*)", "destination": "/api" }
   ]
 }
