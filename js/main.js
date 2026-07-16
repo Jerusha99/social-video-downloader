@@ -17,38 +17,30 @@
     });
 
     // === AD SYSTEM ===
-    var HILLTOP_BANNER1 = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
     var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
     var HILLTOP_VIDEO  = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
 
-    function hilltopIIFE(src) {
-        return '<script>(function(x){var d=document,s=d.createElement("script"),l=d.scripts[d.scripts.length-1];s.settings=x||{};s.src="' + src + '";s.async=true;s.referrerPolicy="no-referrer-when-downgrade";l.parentNode.insertBefore(s,l)})({})<\/script>';
+    // Left sidebar (desktop only)
+    var leftSidebar = document.getElementById('sidebar-ad-left');
+    if (leftSidebar) {
+        var ls = document.createElement('script');
+        ls.src = HILLTOP_BANNER2;
+        ls.async = true;
+        ls.referrerPolicy = 'no-referrer-when-downgrade';
+        leftSidebar.appendChild(ls);
     }
 
-    function injectAd(containerId, src) {
-        var el = document.getElementById(containerId);
-        if (!el) return;
-        el.insertAdjacentHTML('beforeend', hilltopIIFE(src));
+    // Right sidebar (desktop only)
+    var rightSidebar = document.getElementById('sidebar-ad-right');
+    if (rightSidebar) {
+        var rs = document.createElement('script');
+        rs.src = HILLTOP_BANNER2;
+        rs.async = true;
+        rs.referrerPolicy = 'no-referrer-when-downgrade';
+        rightSidebar.appendChild(rs);
     }
 
-    // 1. Top banner
-    injectAd('ad-banner-top', HILLTOP_BANNER1);
-
-    // 2. Bottom banner — after #result
-    var bottomBanner = document.createElement('div');
-    bottomBanner.className = 'ad-banner';
-    bottomBanner.id = 'ad-banner-bottom';
-    var resultEl = document.getElementById('result');
-    resultEl.parentNode.insertBefore(bottomBanner, resultEl.nextSibling);
-    injectAd('ad-banner-bottom', HILLTOP_BANNER2);
-
-    // 3. Left sidebar (desktop only)
-    injectAd('sidebar-ad-left', HILLTOP_BANNER2);
-
-    // 4. Right sidebar (desktop only)
-    injectAd('sidebar-ad-right', HILLTOP_BANNER2);
-
-    // 5. Floating slide banner (right side)
+    // Floating slide banner (right side)
     var slideBanner = document.createElement('div');
     slideBanner.className = 'slide-banner';
     slideBanner.id = 'slide-banner-right';
@@ -56,14 +48,18 @@
     document.body.appendChild(slideBanner);
     setTimeout(function () {
         slideBanner.classList.add('visible');
-        injectAd('slide-banner-slot', HILLTOP_VIDEO);
+        var sv = document.createElement('script');
+        sv.src = HILLTOP_VIDEO;
+        sv.async = true;
+        sv.referrerPolicy = 'no-referrer-when-downgrade';
+        document.getElementById('slide-banner-slot').appendChild(sv);
     }, 3000);
     document.getElementById('slideBannerClose').addEventListener('click', function () {
         slideBanner.classList.remove('visible');
         setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
     });
 
-    // 6. Sticky bottom bar
+    // Sticky bottom bar
     var stickyBar = document.createElement('div');
     stickyBar.className = 'sticky-bottom-bar';
     stickyBar.id = 'sticky-bottom-bar';
@@ -71,7 +67,11 @@
     document.body.appendChild(stickyBar);
     setTimeout(function () {
         stickyBar.classList.add('visible');
-        injectAd('sticky-bottom-slot', HILLTOP_BANNER2);
+        var sb = document.createElement('script');
+        sb.src = HILLTOP_BANNER2;
+        sb.async = true;
+        sb.referrerPolicy = 'no-referrer-when-downgrade';
+        document.getElementById('sticky-bottom-slot').appendChild(sb);
     }, 5000);
     document.getElementById('stickyBottomClose').addEventListener('click', function () {
         stickyBar.classList.remove('visible');
