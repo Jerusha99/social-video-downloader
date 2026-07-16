@@ -32,20 +32,7 @@
 
     <main class="container">
         <section id="tab-downloader" class="tab-content active">
-            <div class="ad-banner" id="ad-banner-top">
-                <script>
-                (function(rrz){
-                var d = document,
-                    s = d.createElement('script'),
-                    l = d.scripts[d.scripts.length - 1];
-                s.settings = rrz || {};
-                s.src = "\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy";
-                s.async = true;
-                s.referrerPolicy = 'no-referrer-when-downgrade';
-                l.parentNode.insertBefore(s, l);
-                })({})
-                </script>
-            </div>
+            <div class="ad-banner" id="ad-banner-top"></div>
             <div class="hero">
                 <div class="input-area">
                     <form id="downloadForm" method="POST" action="">
@@ -79,20 +66,7 @@
 
             <div id="result"></div>
 
-            <div class="ad-banner" id="ad-banner-bottom">
-                <script>
-                (function(rrz){
-                var d = document,
-                    s = d.createElement('script'),
-                    l = d.scripts[d.scripts.length - 1];
-                s.settings = rrz || {};
-                s.src = "\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy";
-                s.async = true;
-                s.referrerPolicy = 'no-referrer-when-downgrade';
-                l.parentNode.insertBefore(s, l);
-                })({})
-                </script>
-            </div>
+            <div class="ad-banner" id="ad-banner-bottom"></div>
         </section>
 
         <section id="tab-howto" class="tab-content">
@@ -181,24 +155,19 @@
 
     <!-- Floating slide banner (right side) -->
     <div class="slide-banner" id="slide-banner-right">
-        <div class="slide-banner-inner">
+        <div class="slide-banner-inner" id="slide-banner-slot">
             <button class="slide-banner-close" id="slideBannerClose">&times;</button>
-            <script>
-            (function(rrz){
-            var d = document,
-                s = d.createElement('script'),
-                l = d.scripts[d.scripts.length - 1];
-            s.settings = rrz || {};
-            s.src = "\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy";
-            s.async = true;
-            s.referrerPolicy = 'no-referrer-when-downgrade';
-            l.parentNode.insertBefore(s, l);
-            })({})
-            </script>
         </div>
     </div>
 
-    <!-- ====== MONETAG (banners/push - popunder disabled) ====== -->
+    <!-- Sticky bottom bar -->
+    <div class="sticky-bottom-bar" id="sticky-bottom-bar">
+        <div class="sticky-bottom-inner" id="sticky-bottom-slot">
+            <button class="sticky-bottom-close" id="stickyBottomClose">&times;</button>
+        </div>
+    </div>
+
+    <!-- ====== MONETAG (banners/push - popunder blocked) ====== -->
     <script>
         var _origOpen = window.open;
         window.open = function(url, target, features) {

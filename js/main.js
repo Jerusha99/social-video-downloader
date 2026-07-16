@@ -2,27 +2,86 @@
     'use strict';
 
     // === Tab Switching ===
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    var tabContents = document.querySelectorAll('.tab-content');
 
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const target = btn.dataset.tab;
-            tabBtns.forEach(b => b.classList.remove('active'));
+    tabBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var target = btn.dataset.tab;
+            tabBtns.forEach(function (b) { b.classList.remove('active'); });
             btn.classList.add('active');
-            tabContents.forEach(c => c.classList.remove('active'));
-            const targetEl = document.getElementById('tab-' + target);
+            tabContents.forEach(function (c) { c.classList.remove('active'); });
+            var targetEl = document.getElementById('tab-' + target);
             if (targetEl) targetEl.classList.add('active');
         });
     });
 
-    // === Download Form (AJAX) ===
-    const form = document.getElementById('downloadForm');
-    const input = document.getElementById('urlInput');
-    const submitBtn = form ? form.querySelector('.btn-primary') : null;
-    const resultContainer = document.getElementById('result');
-    const POPUNDER_URL = 'https://pleased-report.com/bt3OV.0DPo3GpnvsbIm_VjJaZaDV0D3LM/jkIx3yNqjxcT3lLxTec/yJMOjScA2gObD_Ex';
-    let lastPopunder = 0;
+    // === AD LOADER ===
+    var HILLTOP_SRC = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
+
+    function loadHilltopBanner(containerId) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var s = document.createElement('script');
+        s.src = HILLTOP_SRC;
+        s.async = true;
+        s.referrerPolicy = 'no-referrer-when-downgrade';
+        container.appendChild(s);
+    }
+
+    // Load top banner immediately
+    loadHilltopBanner('ad-banner-top');
+
+    // Load bottom banner immediately
+    loadHilltopBanner('ad-banner-bottom');
+
+    // Load floating banner ad after it slides in
+    var slideBanner = document.getElementById('slide-banner-right');
+    var slideClose = document.getElementById('slideBannerClose');
+    var slideLoaded = false;
+    if (slideBanner) {
+        setTimeout(function () {
+            slideBanner.classList.add('visible');
+            if (!slideLoaded) {
+                loadHilltopBanner('slide-banner-slot');
+                slideLoaded = true;
+            }
+        }, 3000);
+    }
+    if (slideClose) {
+        slideClose.addEventListener('click', function () {
+            slideBanner.classList.remove('visible');
+            setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
+        });
+    }
+
+    // Load sticky bottom bar ad after 5 seconds
+    var stickyBar = document.getElementById('sticky-bottom-bar');
+    var stickyClose = document.getElementById('stickyBottomClose');
+    var stickyLoaded = false;
+    if (stickyBar) {
+        setTimeout(function () {
+            stickyBar.classList.add('visible');
+            if (!stickyLoaded) {
+                loadHilltopBanner('sticky-bottom-slot');
+                stickyLoaded = true;
+            }
+        }, 5000);
+    }
+    if (stickyClose) {
+        stickyClose.addEventListener('click', function () {
+            stickyBar.classList.remove('visible');
+            setTimeout(function () { stickyBar.style.display = 'none'; }, 400);
+        });
+    }
+
+    // === POPUNDER (HilltopAds - Download click only) ===
+    var form = document.getElementById('downloadForm');
+    var input = document.getElementById('urlInput');
+    var submitBtn = form ? form.querySelector('.btn-primary') : null;
+    var resultContainer = document.getElementById('result');
+    var POPUNDER_URL = 'https://pleased-report.com/bt3OV.0DPo3GpnvsbIm_VjJaZaDV0D3LM/jkIx3yNqjxcT3lLxTec/yJMOjScA2gObD_Ex';
+    var lastPopunder = 0;
 
     function firePopunder() {
         if (Date.now() - lastPopunder < 30000) return;
@@ -63,11 +122,11 @@
 
     if (form) {
         form.addEventListener('submit', async function (e) {
-            const url = input.value.trim();
+            var url = input.value.trim();
             if (!url) return;
             e.preventDefault();
 
-            const oldResult = resultContainer.querySelector('.result');
+            var oldResult = resultContainer.querySelector('.result');
             if (oldResult) oldResult.remove();
 
             firePopunder();
@@ -78,13 +137,13 @@
 
             showCountdown(5, async function () {
                 try {
-                    const resp = await fetch('/api/fetch', {
+                    var resp = await fetch('/api/fetch', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url }),
+                        body: JSON.stringify({ url: url }),
                     });
 
-                    const json = await resp.json();
+                    var json = await resp.json();
 
                     if (json.success) {
                         renderResult(json.data, url);
@@ -103,31 +162,31 @@
     }
 
     function renderError(msg) {
-        const el = document.createElement('div');
+        var el = document.createElement('div');
         el.className = 'result error';
         el.innerHTML = '<i class="fas fa-exclamation-circle"></i><p>' + escapeHtml(msg) + '</p>';
         resultContainer.appendChild(el);
     }
 
     function renderResult(data, originalUrl) {
-        const el = document.createElement('div');
+        var el = document.createElement('div');
         el.className = 'result success';
 
-        const formats = data.formats || [];
-        const hasValidFormats = formats.length > 0;
-        const platform = (data.platform || '').toLowerCase();
-        const isYoutube = platform === 'youtube';
-        let formatsHtml = '';
+        var formats = data.formats || [];
+        var hasValidFormats = formats.length > 0;
+        var platform = (data.platform || '').toLowerCase();
+        var isYoutube = platform === 'youtube';
+        var formatsHtml = '';
 
         if (hasValidFormats) {
-            formatsHtml = formats.filter(f => {
-                const ext = (f.format || '').toLowerCase();
+            formatsHtml = formats.filter(function (f) {
+                var ext = (f.format || '').toLowerCase();
                 return ext === 'mp4' || ext === 'mp3';
-            }).map(f => {
+            }).map(function (f) {
                 if (!f.url) return '';
-                const icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
-                const needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
-                let href, extraClass, extraAttrs;
+                var icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
+                var needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
+                var href, extraClass, extraAttrs;
                 if (isYoutube) {
                     href = '/api/download?url=' + encodeURIComponent(f.url) + '&platform=youtube' +
                         (originalUrl ? '&v=' + encodeURIComponent(originalUrl) + '&fmt=' + encodeURIComponent(f.label) : '');
@@ -156,7 +215,7 @@
             formatsHtml += '<p class="youtube-hint"><i class="fas fa-info-circle"></i> Use 360p MP4 for best compatibility. Higher qualities may fail due to server limitations.</p>';
         }
 
-        const desc = data.description ? '<p class="description">' + escapeHtml(data.description.substring(0, 300)) + '</p>' : '';
+        var desc = data.description ? '<p class="description">' + escapeHtml(data.description.substring(0, 300)) + '</p>' : '';
         el.innerHTML =
             '<div class="video-preview">' +
             (data.thumbnail ? '<div class="thumbnail-wrapper"><img src="' + escapeHtml(data.thumbnail) + '" alt="Thumbnail" loading="lazy" onerror="this.parentElement.style.display=\'none\'"></div>' : '') +
@@ -177,27 +236,27 @@
 
     function escapeHtml(str) {
         if (!str) return '';
-        const div = document.createElement('div');
+        var div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }
 
-    // === YouTube force-download: fetch follows 302 to CDN, pipe to blob ===
+    // === YouTube force-download ===
     document.addEventListener('click', async function (e) {
-        const btn = e.target.closest('.youtube-dl-btn');
+        var btn = e.target.closest('.youtube-dl-btn');
         if (btn) {
             e.preventDefault();
-            const href = btn.getAttribute('href');
-            const label = btn.getAttribute('data-video-label') || 'video';
-            const filename = 'youtube-' + label.replace(/[^a-zA-Z0-9]/g, '_') + '.mp4';
+            var href = btn.getAttribute('href');
+            var label = btn.getAttribute('data-video-label') || 'video';
+            var filename = 'youtube-' + label.replace(/[^a-zA-Z0-9]/g, '_') + '.mp4';
             btn.classList.add('loading');
-            const origHtml = btn.innerHTML;
+            var origHtml = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner"></i> Downloading...';
             try {
-                const resp = await fetch(href);
+                var resp = await fetch(href);
                 if (resp.ok) {
-                    const blob = await resp.blob();
-                    const a = document.createElement('a');
+                    var blob = await resp.blob();
+                    var a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
                     a.download = filename;
                     document.body.appendChild(a);
@@ -205,51 +264,38 @@
                     document.body.removeChild(a);
                     URL.revokeObjectURL(a.href);
                     btn.innerHTML = '<i class="fas fa-check"></i> Downloaded';
-                    setTimeout(() => { btn.innerHTML = origHtml; btn.classList.remove('loading'); }, 3000);
+                    setTimeout(function () { btn.innerHTML = origHtml; btn.classList.remove('loading'); }, 3000);
                     return;
                 }
-            } catch {}
+            } catch (ex) {}
             btn.innerHTML = origHtml;
             btn.classList.remove('loading');
             window.open(href, '_blank');
         }
     });
 
-    // === FAQ Accordion (delegated) ===
+    // === FAQ Accordion ===
     document.addEventListener('click', function (e) {
-        const question = e.target.closest('.faq-question');
+        var question = e.target.closest('.faq-question');
         if (question) {
             question.parentElement.classList.toggle('open');
         }
     });
 
     // === Contact Form ===
-    const contactForm = document.getElementById('contactForm');
+    var contactForm = document.getElementById('contactForm');
     if (contactForm) {
         contactForm.addEventListener('submit', function (e) {
             e.preventDefault();
-            const btn = this.querySelector('.btn-primary');
-            const orig = btn.innerHTML;
+            var btn = this.querySelector('.btn-primary');
+            var orig = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-check"></i> Message Sent!';
             btn.disabled = true;
-            setTimeout(() => {
+            setTimeout(function () {
                 btn.innerHTML = orig;
                 btn.disabled = false;
-                this.reset();
+                contactForm.reset();
             }, 3000);
-        });
-    }
-
-    // === Floating Slide Banner ===
-    var slideBanner = document.getElementById('slide-banner-right');
-    var slideClose = document.getElementById('slideBannerClose');
-    if (slideBanner) {
-        setTimeout(function () { slideBanner.classList.add('visible'); }, 3000);
-    }
-    if (slideClose) {
-        slideClose.addEventListener('click', function () {
-            slideBanner.classList.remove('visible');
-            setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
         });
     }
 })();

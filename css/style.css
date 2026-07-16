@@ -23,6 +23,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    padding-bottom: 80px;
 }
 
 .container {
@@ -327,6 +328,61 @@ body {
 
 @media (max-width: 768px) {
     .slide-banner {
+        display: none;
+    }
+}
+
+/* === Sticky Bottom Bar === */
+.sticky-bottom-bar {
+    position: fixed;
+    bottom: -120px;
+    left: 0;
+    width: 100%;
+    z-index: 998;
+    transition: bottom 0.4s ease;
+    padding: 0 10px;
+}
+
+.sticky-bottom-bar.visible {
+    bottom: 0;
+}
+
+.sticky-bottom-inner {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 40px 10px 10px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70px;
+}
+
+.sticky-bottom-close {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    line-height: 1;
+}
+
+.sticky-bottom-close:hover {
+    background: var(--accent-hover);
+}
+
+@media (max-width: 768px) {
+    .sticky-bottom-bar {
         display: none;
     }
 }
