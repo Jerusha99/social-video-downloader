@@ -260,6 +260,24 @@ body {
     color: var(--accent);
 }
 
+/* === Ad Banners === */
+.ad-banner {
+    text-align: center;
+    margin: 16px 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ad-banner:empty {
+    display: none;
+}
+
+.ad-banner iframe,
+.ad-banner ins,
+.ad-banner script {
+    max-width: 100%;
+}
+
 /* === Result === */
 .result {
     background: var(--surface);
