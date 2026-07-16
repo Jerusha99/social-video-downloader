@@ -18,12 +18,24 @@
 
     // === AD LOADER ===
     var HILLTOP_SRC = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
+    var HILLTOP_VIDEO = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
 
     function loadHilltopBanner(containerId) {
         var container = document.getElementById(containerId);
         if (!container) return;
         var s = document.createElement('script');
         s.src = HILLTOP_SRC;
+        s.async = true;
+        s.referrerPolicy = 'no-referrer-when-downgrade';
+        s.settings = {};
+        container.appendChild(s);
+    }
+
+    function loadHilltopVideo(containerId) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var s = document.createElement('script');
+        s.src = HILLTOP_VIDEO;
         s.async = true;
         s.referrerPolicy = 'no-referrer-when-downgrade';
         s.settings = {};
@@ -44,7 +56,7 @@
         setTimeout(function () {
             slideBanner.classList.add('visible');
             if (!slideLoaded) {
-                loadHilltopBanner('slide-banner-slot');
+                loadHilltopVideo('slide-banner-slot');
                 slideLoaded = true;
             }
         }, 3000);
