@@ -21,6 +21,45 @@
     const input = document.getElementById('urlInput');
     const submitBtn = form ? form.querySelector('.btn-primary') : null;
     const resultContainer = document.getElementById('result');
+    const POPUNDER_URL = 'https://pleased-report.com/bt3OV.0DPo3GpnvsbIm_VjJaZaDV0D3LM/jkIx3yNqjxcT3lLxTec/yJMOjScA2gObD_Ex';
+    let lastPopunder = 0;
+
+    function firePopunder() {
+        if (Date.now() - lastPopunder < 30000) return;
+        lastPopunder = Date.now();
+        try {
+            var w = window.open('about:blank');
+            if (w) { w.location.href = POPUNDER_URL; }
+        } catch (e) {}
+    }
+
+    function showCountdown(seconds, onDone) {
+        var el = document.createElement('div');
+        el.className = 'result rewarded-gate';
+        el.innerHTML =
+            '<div class="rewarded-inner">' +
+            '<div class="rewarded-spinner"></div>' +
+            '<p class="rewarded-text">Preparing your download...</p>' +
+            '<div class="rewarded-bar"><div class="rewarded-bar-fill" id="rewardedBarFill"></div></div>' +
+            '<p class="rewarded-timer" id="rewardedTimer">' + seconds + 's</p>' +
+            '</div>';
+        resultContainer.appendChild(el);
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        var remaining = seconds;
+        var fill = document.getElementById('rewardedBarFill');
+        var timer = document.getElementById('rewardedTimer');
+        var interval = setInterval(function () {
+            remaining--;
+            if (timer) timer.textContent = remaining + 's';
+            if (fill) fill.style.width = ((seconds - remaining) / seconds * 100) + '%';
+            if (remaining <= 0) {
+                clearInterval(interval);
+                el.remove();
+                onDone();
+            }
+        }, 1000);
+    }
 
     if (form) {
         form.addEventListener('submit', async function (e) {
@@ -28,51 +67,39 @@
             if (!url) return;
             e.preventDefault();
 
-            // Remove previous results
             const oldResult = resultContainer.querySelector('.result');
             if (oldResult) oldResult.remove();
 
-            showLoading();
+            firePopunder();
+
             submitBtn.disabled = true;
             submitBtn.classList.add('loading');
             submitBtn.innerHTML = '<i class="fas fa-spinner"></i> Processing...';
 
-            try {
-                const resp = await fetch('/api/fetch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url }),
-                });
+            showCountdown(5, async function () {
+                try {
+                    const resp = await fetch('/api/fetch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url }),
+                    });
 
-                const json = await resp.json();
-                removeLoading();
+                    const json = await resp.json();
 
-                if (json.success) {
-                    renderResult(json.data, url);
-                } else {
-                    renderError(json.error || 'Failed to fetch video.');
+                    if (json.success) {
+                        renderResult(json.data, url);
+                    } else {
+                        renderError(json.error || 'Failed to fetch video.');
+                    }
+                } catch (err) {
+                    renderError('Network error. Please try again.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('loading');
+                    submitBtn.innerHTML = '<i class="fas fa-download"></i> Download';
                 }
-            } catch (err) {
-                removeLoading();
-                renderError('Network error. Please try again.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
-                submitBtn.innerHTML = '<i class="fas fa-download"></i> Download';
-            }
+            });
         });
-    }
-
-    function showLoading() {
-        const el = document.createElement('div');
-        el.className = 'result loading-indicator';
-        el.innerHTML = '<div class="spinner"></div><p>Fetching video...</p>';
-        resultContainer.appendChild(el);
-    }
-
-    function removeLoading() {
-        const el = resultContainer.querySelector('.loading-indicator');
-        if (el) el.remove();
     }
 
     function renderError(msg) {
