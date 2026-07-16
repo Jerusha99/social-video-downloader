@@ -17,7 +17,7 @@
     });
 
     // === AD LOADER ===
-    var HILLTOP_SRC = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
+    var HILLTOP_SRC = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
 
     function loadHilltopBanner(containerId) {
         var container = document.getElementById(containerId);
