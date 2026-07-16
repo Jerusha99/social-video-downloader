@@ -17,76 +17,59 @@
     });
 
     // === AD LOADER ===
-    var HILLTOP_SRC = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
+    var HILLTOP_BANNER1 = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
+    var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
     var HILLTOP_VIDEO = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
 
-    function loadHilltopBanner(containerId) {
+    function injectAd(containerId, src) {
         var container = document.getElementById(containerId);
         if (!container) return;
         var s = document.createElement('script');
-        s.src = HILLTOP_SRC;
+        s.src = src;
         s.async = true;
         s.referrerPolicy = 'no-referrer-when-downgrade';
-        s.settings = {};
         container.appendChild(s);
     }
 
-    function loadHilltopVideo(containerId) {
-        var container = document.getElementById(containerId);
-        if (!container) return;
-        var s = document.createElement('script');
-        s.src = HILLTOP_VIDEO;
-        s.async = true;
-        s.referrerPolicy = 'no-referrer-when-downgrade';
-        s.settings = {};
-        container.appendChild(s);
-    }
+    // Bottom banner — insert after #result
+    var bottomBanner = document.createElement('div');
+    bottomBanner.className = 'ad-banner';
+    bottomBanner.id = 'ad-banner-bottom';
+    var resultEl = document.getElementById('result');
+    resultEl.parentNode.insertBefore(bottomBanner, resultEl.nextSibling);
+    injectAd('ad-banner-bottom', HILLTOP_BANNER2);
 
-    // Load top banner immediately
-    loadHilltopBanner('ad-banner-top');
-
-    // Load bottom banner immediately
-    loadHilltopBanner('ad-banner-bottom');
-
-    // Load floating banner ad after it slides in
-    var slideBanner = document.getElementById('slide-banner-right');
+    // Floating slide banner
+    var slideBanner = document.createElement('div');
+    slideBanner.className = 'slide-banner';
+    slideBanner.id = 'slide-banner-right';
+    slideBanner.innerHTML = '<div class="slide-banner-inner" id="slide-banner-slot"><button class="slide-banner-close" id="slideBannerClose">&times;</button></div>';
+    document.body.appendChild(slideBanner);
     var slideClose = document.getElementById('slideBannerClose');
-    var slideLoaded = false;
-    if (slideBanner) {
-        setTimeout(function () {
-            slideBanner.classList.add('visible');
-            if (!slideLoaded) {
-                loadHilltopVideo('slide-banner-slot');
-                slideLoaded = true;
-            }
-        }, 3000);
-    }
-    if (slideClose) {
-        slideClose.addEventListener('click', function () {
-            slideBanner.classList.remove('visible');
-            setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
-        });
-    }
+    setTimeout(function () {
+        slideBanner.classList.add('visible');
+        injectAd('slide-banner-slot', HILLTOP_VIDEO);
+    }, 3000);
+    slideClose.addEventListener('click', function () {
+        slideBanner.classList.remove('visible');
+        setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
+    });
 
-    // Load sticky bottom bar ad after 5 seconds
-    var stickyBar = document.getElementById('sticky-bottom-bar');
+    // Sticky bottom bar
+    var stickyBar = document.createElement('div');
+    stickyBar.className = 'sticky-bottom-bar';
+    stickyBar.id = 'sticky-bottom-bar';
+    stickyBar.innerHTML = '<div class="sticky-bottom-inner" id="sticky-bottom-slot"><button class="sticky-bottom-close" id="stickyBottomClose">&times;</button></div>';
+    document.body.appendChild(stickyBar);
     var stickyClose = document.getElementById('stickyBottomClose');
-    var stickyLoaded = false;
-    if (stickyBar) {
-        setTimeout(function () {
-            stickyBar.classList.add('visible');
-            if (!stickyLoaded) {
-                loadHilltopBanner('sticky-bottom-slot');
-                stickyLoaded = true;
-            }
-        }, 5000);
-    }
-    if (stickyClose) {
-        stickyClose.addEventListener('click', function () {
-            stickyBar.classList.remove('visible');
-            setTimeout(function () { stickyBar.style.display = 'none'; }, 400);
-        });
-    }
+    setTimeout(function () {
+        stickyBar.classList.add('visible');
+        injectAd('sticky-bottom-slot', HILLTOP_BANNER2);
+    }, 5000);
+    stickyClose.addEventListener('click', function () {
+        stickyBar.classList.remove('visible');
+        setTimeout(function () { stickyBar.style.display = 'none'; }, 400);
+    });
 
     // === POPUNDER (HilltopAds - Download click only) ===
     var form = document.getElementById('downloadForm');
