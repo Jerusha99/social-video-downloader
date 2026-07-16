@@ -157,6 +157,17 @@
         </section>
     </main>
 
+    <!-- ====== MONETAG (banners/push - popunder disabled) ====== -->
+    <script>
+        var _origOpen = window.open;
+        window.open = function(url, target, features) {
+            if (url && url.indexOf('quge5.com') !== -1) return null;
+            if (url && url.indexOf('3nbf4.com') !== -1) return null;
+            return _origOpen.call(window, url, target, features);
+        };
+    </script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="257815" async data-cfasync="false"></script>
+
     <footer class="footer">
         <div class="container">
             <p>&copy; 2026 <strong>Jerusha'Tech</strong>. All rights reserved. Made with <i class="fas fa-heart" style="color: #ef4444;"></i></p>
