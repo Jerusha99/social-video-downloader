@@ -17,28 +17,36 @@
     });
 
     // === AD SYSTEM ===
+    var HILLTOP_BANNER1 = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
     var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
     var HILLTOP_VIDEO  = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
 
-    // Left sidebar (desktop only)
-    var leftSidebar = document.getElementById('sidebar-ad-left');
-    if (leftSidebar) {
-        var ls = document.createElement('script');
-        ls.src = HILLTOP_BANNER2;
-        ls.async = true;
-        ls.referrerPolicy = 'no-referrer-when-downgrade';
-        leftSidebar.appendChild(ls);
+    function loadHilltopAd(src) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.referrerPolicy = 'no-referrer-when-downgrade';
+        s.settings = {};
+        var lastScript = document.scripts[document.scripts.length - 1];
+        lastScript.parentNode.insertBefore(s, lastScript);
     }
 
+    // Top banner
+    loadHilltopAd(HILLTOP_BANNER1);
+
+    // Bottom banner
+    var bottomBanner = document.createElement('div');
+    bottomBanner.className = 'ad-banner';
+    bottomBanner.id = 'ad-banner-bottom';
+    var resultEl = document.getElementById('result');
+    resultEl.parentNode.insertBefore(bottomBanner, resultEl.nextSibling);
+    loadHilltopAd(HILLTOP_BANNER2);
+
+    // Left sidebar (desktop only)
+    loadHilltopAd(HILLTOP_BANNER2);
+
     // Right sidebar (desktop only)
-    var rightSidebar = document.getElementById('sidebar-ad-right');
-    if (rightSidebar) {
-        var rs = document.createElement('script');
-        rs.src = HILLTOP_BANNER2;
-        rs.async = true;
-        rs.referrerPolicy = 'no-referrer-when-downgrade';
-        rightSidebar.appendChild(rs);
-    }
+    loadHilltopAd(HILLTOP_BANNER2);
 
     // Floating slide banner (right side)
     var slideBanner = document.createElement('div');
@@ -48,11 +56,7 @@
     document.body.appendChild(slideBanner);
     setTimeout(function () {
         slideBanner.classList.add('visible');
-        var sv = document.createElement('script');
-        sv.src = HILLTOP_VIDEO;
-        sv.async = true;
-        sv.referrerPolicy = 'no-referrer-when-downgrade';
-        document.getElementById('slide-banner-slot').appendChild(sv);
+        loadHilltopAd(HILLTOP_VIDEO);
     }, 3000);
     document.getElementById('slideBannerClose').addEventListener('click', function () {
         slideBanner.classList.remove('visible');
@@ -67,11 +71,7 @@
     document.body.appendChild(stickyBar);
     setTimeout(function () {
         stickyBar.classList.add('visible');
-        var sb = document.createElement('script');
-        sb.src = HILLTOP_BANNER2;
-        sb.async = true;
-        sb.referrerPolicy = 'no-referrer-when-downgrade';
-        document.getElementById('sticky-bottom-slot').appendChild(sb);
+        loadHilltopAd(HILLTOP_BANNER2);
     }, 5000);
     document.getElementById('stickyBottomClose').addEventListener('click', function () {
         stickyBar.classList.remove('visible');
