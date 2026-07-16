@@ -16,22 +16,25 @@
         });
     });
 
-    // === AD LOADER ===
+    // === AD SYSTEM ===
     var HILLTOP_BANNER1 = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
     var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
-    var HILLTOP_VIDEO = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
+    var HILLTOP_VIDEO  = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
 
-    function injectAd(containerId, src) {
-        var container = document.getElementById(containerId);
-        if (!container) return;
-        var s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.referrerPolicy = 'no-referrer-when-downgrade';
-        container.appendChild(s);
+    function hilltopIIFE(src) {
+        return '<script>(function(x){var d=document,s=d.createElement("script"),l=d.scripts[d.scripts.length-1];s.settings=x||{};s.src="' + src + '";s.async=true;s.referrerPolicy="no-referrer-when-downgrade";l.parentNode.insertBefore(s,l)})({})<\/script>';
     }
 
-    // Bottom banner — insert after #result
+    function injectAd(containerId, src) {
+        var el = document.getElementById(containerId);
+        if (!el) return;
+        el.insertAdjacentHTML('beforeend', hilltopIIFE(src));
+    }
+
+    // 1. Top banner
+    injectAd('ad-banner-top', HILLTOP_BANNER1);
+
+    // 2. Bottom banner — after #result
     var bottomBanner = document.createElement('div');
     bottomBanner.className = 'ad-banner';
     bottomBanner.id = 'ad-banner-bottom';
@@ -39,34 +42,38 @@
     resultEl.parentNode.insertBefore(bottomBanner, resultEl.nextSibling);
     injectAd('ad-banner-bottom', HILLTOP_BANNER2);
 
-    // Floating slide banner
+    // 3. Left sidebar (desktop only)
+    injectAd('sidebar-ad-left', HILLTOP_BANNER2);
+
+    // 4. Right sidebar (desktop only)
+    injectAd('sidebar-ad-right', HILLTOP_BANNER2);
+
+    // 5. Floating slide banner (right side)
     var slideBanner = document.createElement('div');
     slideBanner.className = 'slide-banner';
     slideBanner.id = 'slide-banner-right';
     slideBanner.innerHTML = '<div class="slide-banner-inner" id="slide-banner-slot"><button class="slide-banner-close" id="slideBannerClose">&times;</button></div>';
     document.body.appendChild(slideBanner);
-    var slideClose = document.getElementById('slideBannerClose');
     setTimeout(function () {
         slideBanner.classList.add('visible');
         injectAd('slide-banner-slot', HILLTOP_VIDEO);
     }, 3000);
-    slideClose.addEventListener('click', function () {
+    document.getElementById('slideBannerClose').addEventListener('click', function () {
         slideBanner.classList.remove('visible');
         setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
     });
 
-    // Sticky bottom bar
+    // 6. Sticky bottom bar
     var stickyBar = document.createElement('div');
     stickyBar.className = 'sticky-bottom-bar';
     stickyBar.id = 'sticky-bottom-bar';
     stickyBar.innerHTML = '<div class="sticky-bottom-inner" id="sticky-bottom-slot"><button class="sticky-bottom-close" id="stickyBottomClose">&times;</button></div>';
     document.body.appendChild(stickyBar);
-    var stickyClose = document.getElementById('stickyBottomClose');
     setTimeout(function () {
         stickyBar.classList.add('visible');
         injectAd('sticky-bottom-slot', HILLTOP_BANNER2);
     }, 5000);
-    stickyClose.addEventListener('click', function () {
+    document.getElementById('stickyBottomClose').addEventListener('click', function () {
         stickyBar.classList.remove('visible');
         setTimeout(function () { stickyBar.style.display = 'none'; }, 400);
     });

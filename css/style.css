@@ -279,6 +279,34 @@ body {
     max-width: 100%;
 }
 
+/* === Sidebar Ads (desktop only) === */
+.sidebar-ad {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 160px;
+    z-index: 900;
+    text-align: center;
+}
+
+.sidebar-ad-left {
+    left: 10px;
+}
+
+.sidebar-ad-right {
+    right: 10px;
+}
+
+.sidebar-ad:empty {
+    display: none;
+}
+
+@media (max-width: 1200px) {
+    .sidebar-ad {
+        display: none;
+    }
+}
+
 /* === Floating Slide Banner === */
 .slide-banner {
     position: fixed;
