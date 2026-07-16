@@ -26,6 +26,7 @@
         s.src = HILLTOP_SRC;
         s.async = true;
         s.referrerPolicy = 'no-referrer-when-downgrade';
+        s.settings = {};
         container.appendChild(s);
     }
 
