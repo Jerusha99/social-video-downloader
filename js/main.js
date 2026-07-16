@@ -239,4 +239,17 @@
             }, 3000);
         });
     }
+
+    // === Floating Slide Banner ===
+    var slideBanner = document.getElementById('slide-banner-right');
+    var slideClose = document.getElementById('slideBannerClose');
+    if (slideBanner) {
+        setTimeout(function () { slideBanner.classList.add('visible'); }, 3000);
+    }
+    if (slideClose) {
+        slideClose.addEventListener('click', function () {
+            slideBanner.classList.remove('visible');
+            setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
+        });
+    }
 })();
