@@ -23,7 +23,7 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    padding-bottom: 80px;
+    padding-bottom: 20px;
 }
 
 .container {
@@ -279,138 +279,39 @@ body {
     max-width: 100%;
 }
 
-/* === Sidebar Ads (desktop only) === */
-.sidebar-ad {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 160px;
-    z-index: 900;
+/* === Page Layout (main + right sidebar) === */
+.page-layout {
+    display: flex;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    width: 100%;
+}
+
+.page-layout .main-content {
+    flex: 1;
+    min-width: 0;
+}
+
+/* === Right Sidebar Video Ad === */
+.ad-sidebar-right {
+    width: 300px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 80px;
+    align-self: flex-start;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
     text-align: center;
 }
 
-.sidebar-ad-left {
-    left: 10px;
-}
-
-.sidebar-ad-right {
-    right: 10px;
-}
-
-.sidebar-ad:empty {
+.ad-sidebar-right:empty {
     display: none;
 }
 
 @media (max-width: 1200px) {
-    .sidebar-ad {
-        display: none;
-    }
-}
-
-/* === Floating Slide Banner === */
-.slide-banner {
-    position: fixed;
-    right: -320px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 300px;
-    z-index: 999;
-    transition: right 0.4s ease;
-}
-
-.slide-banner.visible {
-    right: 10px;
-}
-
-.slide-banner-inner {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px;
-    position: relative;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-
-.slide-banner-close {
-    position: absolute;
-    top: -8px;
-    left: -8px;
-    width: 24px;
-    height: 24px;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    line-height: 1;
-}
-
-.slide-banner-close:hover {
-    background: var(--accent-hover);
-}
-
-@media (max-width: 768px) {
-    .slide-banner {
-        display: none;
-    }
-}
-
-/* === Sticky Bottom Bar === */
-.sticky-bottom-bar {
-    position: fixed;
-    bottom: -120px;
-    left: 0;
-    width: 100%;
-    z-index: 998;
-    transition: bottom 0.4s ease;
-    padding: 0 10px;
-}
-
-.sticky-bottom-bar.visible {
-    bottom: 0;
-}
-
-.sticky-bottom-inner {
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: 10px 40px 10px 10px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 70px;
-}
-
-.sticky-bottom-close {
-    position: absolute;
-    top: 4px;
-    right: 8px;
-    width: 22px;
-    height: 22px;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    line-height: 1;
-}
-
-.sticky-bottom-close:hover {
-    background: var(--accent-hover);
-}
-
-@media (max-width: 768px) {
-    .sticky-bottom-bar {
+    .ad-sidebar-right {
         display: none;
     }
 }

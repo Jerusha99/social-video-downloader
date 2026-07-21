@@ -35,48 +35,10 @@
     loadHilltopAd(HILLTOP_BANNER1);
 
     // Bottom banner
-    var bottomBanner = document.createElement('div');
-    bottomBanner.className = 'ad-banner';
-    bottomBanner.id = 'ad-banner-bottom';
-    var resultEl = document.getElementById('result');
-    resultEl.parentNode.insertBefore(bottomBanner, resultEl.nextSibling);
     loadHilltopAd(HILLTOP_BANNER2);
 
-    // Left sidebar (desktop only)
-    loadHilltopAd(HILLTOP_BANNER2);
-
-    // Right sidebar (desktop only)
-    loadHilltopAd(HILLTOP_BANNER2);
-
-    // Floating slide banner (right side)
-    var slideBanner = document.createElement('div');
-    slideBanner.className = 'slide-banner';
-    slideBanner.id = 'slide-banner-right';
-    slideBanner.innerHTML = '<div class="slide-banner-inner" id="slide-banner-slot"><button class="slide-banner-close" id="slideBannerClose">&times;</button></div>';
-    document.body.appendChild(slideBanner);
-    setTimeout(function () {
-        slideBanner.classList.add('visible');
-        loadHilltopAd(HILLTOP_VIDEO);
-    }, 3000);
-    document.getElementById('slideBannerClose').addEventListener('click', function () {
-        slideBanner.classList.remove('visible');
-        setTimeout(function () { slideBanner.style.display = 'none'; }, 400);
-    });
-
-    // Sticky bottom bar
-    var stickyBar = document.createElement('div');
-    stickyBar.className = 'sticky-bottom-bar';
-    stickyBar.id = 'sticky-bottom-bar';
-    stickyBar.innerHTML = '<div class="sticky-bottom-inner" id="sticky-bottom-slot"><button class="sticky-bottom-close" id="stickyBottomClose">&times;</button></div>';
-    document.body.appendChild(stickyBar);
-    setTimeout(function () {
-        stickyBar.classList.add('visible');
-        loadHilltopAd(HILLTOP_BANNER2);
-    }, 5000);
-    document.getElementById('stickyBottomClose').addEventListener('click', function () {
-        stickyBar.classList.remove('visible');
-        setTimeout(function () { stickyBar.style.display = 'none'; }, 400);
-    });
+    // Right sidebar video ad (desktop only)
+    loadHilltopAd(HILLTOP_VIDEO);
 
     // === POPUNDER (HilltopAds - Download click only) ===
     var form = document.getElementById('downloadForm');

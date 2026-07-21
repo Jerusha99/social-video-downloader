@@ -30,133 +30,140 @@
         </div>
     </nav>
 
-    <!-- Desktop sidebar ad slots (created by JS) -->
-    <div class="sidebar-ad sidebar-ad-left" id="sidebar-ad-left"></div>
-    <div class="sidebar-ad sidebar-ad-right" id="sidebar-ad-right"></div>
+    <div class="page-layout">
+        <main class="container main-content">
+            <section id="tab-downloader" class="tab-content active">
+                <div class="ad-banner" id="ad-banner-top"></div>
 
-    <main class="container">
-        <section id="tab-downloader" class="tab-content active">
-            <div class="ad-banner" id="ad-banner-top"></div>
-
-            <div class="hero">
-                <div class="input-area">
-                    <form id="downloadForm" method="POST" action="">
-                        <div class="input-group">
-                            <i class="fas fa-link input-icon"></i>
-                            <input type="url" name="url" id="urlInput" placeholder="Paste video link here..." required autofocus>
-                            <button type="submit" class="btn-primary">
-                                <i class="fas fa-download"></i> Download
-                            </button>
+                <div class="hero">
+                    <div class="input-area">
+                        <form id="downloadForm" method="POST" action="">
+                            <div class="input-group">
+                                <i class="fas fa-link input-icon"></i>
+                                <input type="url" name="url" id="urlInput" placeholder="Paste video link here..." required autofocus>
+                                <button type="submit" class="btn-primary">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                        </form>
+                        <div class="supported">
+                            <span>Supported:</span>
+                            <span class="platform-badge" style="--platform-color: #FF0000"><i class="fab fa-youtube"></i> YouTube</span>
+                            <span class="platform-badge" style="--platform-color: #1877F2"><i class="fab fa-facebook"></i> Facebook</span>
+                            <span class="platform-badge" style="--platform-color: #E4405F"><i class="fab fa-instagram"></i> Instagram</span>
+                            <span class="platform-badge" style="--platform-color: #1DA1F2"><i class="fab fa-twitter"></i> Twitter / X</span>
+                            <span class="platform-badge" style="--platform-color: #000000"><i class="fab fa-tiktok"></i> TikTok</span>
+                            <span class="platform-badge" style="--platform-color: #1AB7EA"><i class="fab fa-vimeo-v"></i> Vimeo</span>
+                            <span class="platform-badge" style="--platform-color: #0066DC"><i class="fab fa-dailymotion"></i> Dailymotion</span>
                         </div>
+                    </div>
+
+                    <div class="features">
+                        <div class="feature"><i class="fas fa-infinity"></i> No limits</div>
+                        <div class="feature"><i class="fas fa-user-slash"></i> No sign-up</div>
+                        <div class="feature"><i class="fas fa-bolt"></i> HD quality</div>
+                        <div class="feature"><i class="fas fa-shield-alt"></i> Safe &amp; free</div>
+                    </div>
+                </div>
+
+                <div id="result"></div>
+
+                <div class="ad-banner" id="ad-banner-bottom"></div>
+            </section>
+
+            <section id="tab-howto" class="tab-content">
+                <div class="info-section">
+                    <h2><i class="fas fa-question-circle"></i> How to Use SocialSave</h2>
+                    <div class="steps">
+                        <div class="step">
+                            <div class="step-num">1</div>
+                            <i class="fas fa-copy"></i>
+                            <p>Copy the video URL from any supported platform</p>
+                        </div>
+                        <div class="step">
+                            <div class="step-num">2</div>
+                            <i class="fas fa-paste"></i>
+                            <p>Paste the link in the input field above</p>
+                        </div>
+                        <div class="step">
+                            <div class="step-num">3</div>
+                            <i class="fas fa-check-circle"></i>
+                            <p>Click download and save your video in MP4 or MP3</p>
+                        </div>
+                    </div>
+                    <div class="tips">
+                        <h3>Tips for best results:</h3>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Use the full video URL (including https://)</li>
+                            <li><i class="fas fa-check"></i> For private/age-restricted videos, make sure they are publicly accessible</li>
+                            <li><i class="fas fa-check"></i> Instagram Reels and TikTok videos download in the highest available quality</li>
+                            <li><i class="fas fa-check"></i> YouTube videos support up to 4K resolution in MP4 format</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-faq" class="tab-content">
+                <div class="info-section">
+                    <h2><i class="fas fa-info-circle"></i> Frequently Asked Questions</h2>
+                    <div class="faq-list">
+                        <div class="faq-item">
+                            <div class="faq-question">Is this free to use?</div>
+                            <div class="faq-answer">Yes, 100% free. No registration or payment required. No limits on downloads.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-question">Which platforms are supported?</div>
+                            <div class="faq-answer">YouTube, Facebook, Instagram, Twitter/X, TikTok, Vimeo, Dailymotion and more being added regularly.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-question">What video quality is available?</div>
+                            <div class="faq-answer">Depends on the source &mdash; up to 4K for YouTube and other platforms that offer it. We always serve the highest available quality.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-question">Why is only MP4/MP3 shown?</div>
+                            <div class="faq-answer">We filter to show only the most compatible formats &mdash; MP4 for video and MP3 for audio &mdash; so you get the best experience on any device.</div>
+                        </div>
+                        <div class="faq-item">
+                            <div class="faq-question">Is there a download limit?</div>
+                            <div class="faq-answer">No limits at all. Download as many videos as you want, anytime.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-contact" class="tab-content">
+                <div class="info-section">
+                    <h2><i class="fas fa-envelope"></i> Contact Us</h2>
+                    <p class="contact-desc">Have a question, suggestion, or need help? Reach out to us.</p>
+                    <form id="contactForm" class="contact-form">
+                        <div class="form-group">
+                            <input type="text" placeholder="Your Name" required>
+                        </div>
+                        <div class="form-group">
+                            <input type="email" placeholder="Your Email" required>
+                        </div>
+                        <div class="form-group">
+                            <textarea rows="5" placeholder="Your Message" required></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i> Send Message</button>
                     </form>
-                    <div class="supported">
-                        <span>Supported:</span>
-                        <span class="platform-badge" style="--platform-color: #FF0000"><i class="fab fa-youtube"></i> YouTube</span>
-                        <span class="platform-badge" style="--platform-color: #1877F2"><i class="fab fa-facebook"></i> Facebook</span>
-                        <span class="platform-badge" style="--platform-color: #E4405F"><i class="fab fa-instagram"></i> Instagram</span>
-                        <span class="platform-badge" style="--platform-color: #1DA1F2"><i class="fab fa-twitter"></i> Twitter / X</span>
-                        <span class="platform-badge" style="--platform-color: #000000"><i class="fab fa-tiktok"></i> TikTok</span>
-                        <span class="platform-badge" style="--platform-color: #1AB7EA"><i class="fab fa-vimeo-v"></i> Vimeo</span>
-                        <span class="platform-badge" style="--platform-color: #0066DC"><i class="fab fa-dailymotion"></i> Dailymotion</span>
+                    <div class="contact-info">
+                        <p><i class="fas fa-envelope"></i> support@socialsave.pro</p>
+                        <p><i class="fas fa-globe"></i> Developed by <strong>Jerusha'Tech</strong></p>
                     </div>
                 </div>
+            </section>
+        </main>
 
-                <div class="features">
-                    <div class="feature"><i class="fas fa-infinity"></i> No limits</div>
-                    <div class="feature"><i class="fas fa-user-slash"></i> No sign-up</div>
-                    <div class="feature"><i class="fas fa-bolt"></i> HD quality</div>
-                    <div class="feature"><i class="fas fa-shield-alt"></i> Safe &amp; free</div>
-                </div>
-            </div>
+        <aside class="ad-sidebar-right" id="sidebar-ad-right"></aside>
+    </div>
 
-            <div id="result"></div>
-        </section>
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 <strong>Jerusha'Tech</strong>. All rights reserved. Made with <i class="fas fa-heart" style="color: #ef4444;"></i></p>
+        </div>
+    </footer>
 
-        <section id="tab-howto" class="tab-content">
-            <div class="info-section">
-                <h2><i class="fas fa-question-circle"></i> How to Use SocialSave</h2>
-                <div class="steps">
-                    <div class="step">
-                        <div class="step-num">1</div>
-                        <i class="fas fa-copy"></i>
-                        <p>Copy the video URL from any supported platform</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-num">2</div>
-                        <i class="fas fa-paste"></i>
-                        <p>Paste the link in the input field above</p>
-                    </div>
-                    <div class="step">
-                        <div class="step-num">3</div>
-                        <i class="fas fa-check-circle"></i>
-                        <p>Click download and save your video in MP4 or MP3</p>
-                    </div>
-                </div>
-                <div class="tips">
-                    <h3>Tips for best results:</h3>
-                    <ul>
-                        <li><i class="fas fa-check"></i> Use the full video URL (including https://)</li>
-                        <li><i class="fas fa-check"></i> For private/age-restricted videos, make sure they are publicly accessible</li>
-                        <li><i class="fas fa-check"></i> Instagram Reels and TikTok videos download in the highest available quality</li>
-                        <li><i class="fas fa-check"></i> YouTube videos support up to 4K resolution in MP4 format</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <section id="tab-faq" class="tab-content">
-            <div class="info-section">
-                <h2><i class="fas fa-info-circle"></i> Frequently Asked Questions</h2>
-                <div class="faq-list">
-                    <div class="faq-item">
-                        <div class="faq-question">Is this free to use?</div>
-                        <div class="faq-answer">Yes, 100% free. No registration or payment required. No limits on downloads.</div>
-                    </div>
-                    <div class="faq-item">
-                        <div class="faq-question">Which platforms are supported?</div>
-                        <div class="faq-answer">YouTube, Facebook, Instagram, Twitter/X, TikTok, Vimeo, Dailymotion and more being added regularly.</div>
-                    </div>
-                    <div class="faq-item">
-                        <div class="faq-question">What video quality is available?</div>
-                        <div class="faq-answer">Depends on the source &mdash; up to 4K for YouTube and other platforms that offer it. We always serve the highest available quality.</div>
-                    </div>
-                    <div class="faq-item">
-                        <div class="faq-question">Why is only MP4/MP3 shown?</div>
-                        <div class="faq-answer">We filter to show only the most compatible formats &mdash; MP4 for video and MP3 for audio &mdash; so you get the best experience on any device.</div>
-                    </div>
-                    <div class="faq-item">
-                        <div class="faq-question">Is there a download limit?</div>
-                        <div class="faq-answer">No limits at all. Download as many videos as you want, anytime.</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="tab-contact" class="tab-content">
-            <div class="info-section">
-                <h2><i class="fas fa-envelope"></i> Contact Us</h2>
-                <p class="contact-desc">Have a question, suggestion, or need help? Reach out to us.</p>
-                <form id="contactForm" class="contact-form">
-                    <div class="form-group">
-                        <input type="text" placeholder="Your Name" required>
-                    </div>
-                    <div class="form-group">
-                        <input type="email" placeholder="Your Email" required>
-                    </div>
-                    <div class="form-group">
-                        <textarea rows="5" placeholder="Your Message" required></textarea>
-                    </div>
-                    <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i> Send Message</button>
-                </form>
-                <div class="contact-info">
-                    <p><i class="fas fa-envelope"></i> support@socialsave.pro</p>
-                    <p><i class="fas fa-globe"></i> Developed by <strong>Jerusha'Tech</strong></p>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- ====== MONETAG (banners/push - popunder blocked) ====== -->
     <script>
         var _origOpen = window.open;
         window.open = function(url, target, features) {
@@ -166,12 +173,6 @@
         };
     </script>
     <script src="https://quge5.com/88/tag.min.js" data-zone="257815" async data-cfasync="false"></script>
-
-    <footer class="footer">
-        <div class="container">
-            <p>&copy; 2026 <strong>Jerusha'Tech</strong>. All rights reserved. Made with <i class="fas fa-heart" style="color: #ef4444;"></i></p>
-        </div>
-    </footer>
 
     <script src="js/main.js"></script>
 </body>
