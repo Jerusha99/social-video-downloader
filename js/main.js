@@ -17,70 +17,29 @@
     });
 
     // === AD SYSTEM ===
-    // Each HilltopAds URL = 1 unique ad unit. Different URLs = different ads.
-    var HILLTOP_ADS = {
-        banner1: '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy',
-        banner2: '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN',
-        video:   '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-',
-        banner3: '\/\/relieved-understanding.com\/bOX\/Vas.d-GClT0sYKWUcM\/le\/m\/9PuIZEUFl\/kzPQTZcayZMljycz3ANKDRENtFNYzuIzyBNXzOcw0TNBQe',
-        banner4: '\/\/relieved-understanding.com\/boX.VisddqGElz0\/Y-WRcV\/qe\/mt9su\/ZsU\/llkEPCTqcwyQM\/jPcC3UM_DmEAt-NLznILyPNRzrcDw\/NbQk'
-    };
+    // HilltopAds: each URL = 1 unique ad. Use insertBefore (proven working method).
+    var HILLTOP_ADS = [
+        '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy',
+        '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN',
+        '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-',
+        '\/\/relieved-understanding.com\/bOX\/Vas.d-GClT0sYKWUcM\/le\/m\/9PuIZEUFl\/kzPQTZcayZMljycz3ANKDRENtFNYzuIzyBNXzOcw0TNBQe',
+        '\/\/relieved-understanding.com\/boX.VisddqGElz0\/Y-WRcV\/qe\/mt9su\/ZsU\/llkEPCTqcwyQM\/jPcC3UM_DmEAt-NLznILyPNRzrcDw\/NbQk'
+    ];
 
-    // --- HilltopAds: inject into specific grid containers ---
-    function loadHilltopAd(containerId, src) {
-        var container = document.getElementById(containerId);
-        if (!container) return;
+    function loadHilltopAd(src) {
         var s = document.createElement('script');
         s.src = src;
         s.async = true;
         s.referrerPolicy = 'no-referrer-when-downgrade';
         s.settings = {};
-        container.appendChild(s);
+        var lastScript = document.scripts[document.scripts.length - 1];
+        lastScript.parentNode.insertBefore(s, lastScript);
     }
 
-    // Top grid: 2 slots (HilltopAds - stable)
-    loadHilltopAd('ad-banner-top-1', HILLTOP_ADS.banner1);
-    loadHilltopAd('ad-banner-top-2', HILLTOP_ADS.banner3);
-
-    // Bottom grid: 2 slots (HilltopAds - stable)
-    loadHilltopAd('ad-banner-bottom-1', HILLTOP_ADS.banner2);
-    loadHilltopAd('ad-banner-bottom-2', HILLTOP_ADS.banner4);
-
-    // Bottom grid slots 3 & 4: Capture Monetag auto-injected ads
-    var MONETAG_SLOTS = ['ad-banner-bottom-3', 'ad-banner-bottom-4'];
-    var monetagSlotIndex = 0;
-
-    function captureMonetagAds() {
-        if (monetagSlotIndex >= MONETAG_SLOTS.length) return;
-
-        var candidates = document.querySelectorAll('body > ins, body > iframe, body > div[id*="zone"], body > div[data-zone], body > div[class*="mngr"], body > div[class*="Monetag"], body > div[style*="z-index: 9999"]');
-
-        candidates.forEach(function (el) {
-            if (monetagSlotIndex >= MONETAG_SLOTS.length) return;
-            if (el.dataset.monetagCaptured) return;
-            if (!el.offsetHeight && !el.offsetWidth && !el.querySelector('iframe, ins, img, video')) return;
-
-            var slot = document.getElementById(MONETAG_SLOTS[monetagSlotIndex]);
-            if (!slot) return;
-
-            el.dataset.monetagCaptured = '1';
-            slot.appendChild(el);
-            monetagSlotIndex++;
-        });
-    }
-
-    setTimeout(captureMonetagAds, 2000);
-    setTimeout(captureMonetagAds, 4000);
-    setTimeout(captureMonetagAds, 6000);
-
-    var _adObserver = new MutationObserver(function () {
-        captureMonetagAds();
+    // Load all 5 HilltopAds zones (each = 1 unique ad on page)
+    HILLTOP_ADS.forEach(function (url) {
+        loadHilltopAd(url);
     });
-    _adObserver.observe(document.body, { childList: true, subtree: true });
-    setTimeout(function () { _adObserver.disconnect(); }, 15000);
-
-    // Video sidebar (desktop only, fixed overlay)
-    loadHilltopAd('sidebar-ad-right', HILLTOP_ADS.video);
 
     // === POPUNDER (HilltopAds - Download click only) ===
     var form = document.getElementById('downloadForm');
