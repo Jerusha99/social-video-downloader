@@ -264,7 +264,7 @@ body {
 /* === Ad Banners === */
 .ad-banner {
     text-align: center;
-    margin: 16px auto;
+    margin: 0;
     min-height: 90px;
     overflow: visible;
     display: flex;
@@ -281,6 +281,31 @@ body {
     display: block;
     margin: 0 auto;
     max-width: 100%;
+}
+
+/* === Ad Grids === */
+.ad-grid {
+    margin: 16px 0;
+    gap: 12px;
+}
+
+/* Top: 2 columns */
+.ad-grid-top {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    max-width: 728px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Bottom: 2x2 grid */
+.ad-grid-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    max-width: 728px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* === Page Layout (main + right sidebar) === */
@@ -878,5 +903,20 @@ body {
 
     .step {
         min-width: 140px;
+    }
+
+    /* Mobile ad grids: single column, smaller */
+    .ad-grid-top {
+        grid-template-columns: 1fr;
+        max-width: 320px;
+    }
+
+    .ad-grid-bottom {
+        grid-template-columns: 1fr;
+        max-width: 320px;
+    }
+
+    .ad-banner {
+        min-height: 60px;
     }
 }

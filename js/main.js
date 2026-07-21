@@ -32,11 +32,15 @@
         container.appendChild(s);
     }
 
-    // Top banner
-    loadHilltopAd('ad-banner-top', HILLTOP_BANNER1);
+    // Top banner grid (2 slots)
+    loadHilltopAd('ad-banner-top-1', HILLTOP_BANNER1);
+    loadHilltopAd('ad-banner-top-2', HILLTOP_BANNER1);
 
-    // Bottom banner
-    loadHilltopAd('ad-banner-bottom', HILLTOP_BANNER2);
+    // Bottom banner grid (4 slots - 2x2)
+    loadHilltopAd('ad-banner-bottom-1', HILLTOP_BANNER2);
+    loadHilltopAd('ad-banner-bottom-2', HILLTOP_BANNER2);
+    loadHilltopAd('ad-banner-bottom-3', HILLTOP_BANNER2);
+    loadHilltopAd('ad-banner-bottom-4', HILLTOP_BANNER2);
 
     // Right sidebar video ad (desktop only)
     loadHilltopAd('sidebar-ad-right', HILLTOP_VIDEO);
