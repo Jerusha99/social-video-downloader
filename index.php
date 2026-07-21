@@ -213,6 +213,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['url'])) {
     </main>
     </div>
 
+    <!-- RIGHT SIDEBAR VIDEO AD -->
+    <aside class="ad-sidebar-right">
+        <script>
+        (function(anl){
+        var d = document,
+            s = d.createElement('script'),
+            l = d.scripts[d.scripts.length - 1];
+        s.settings = anl || {};
+        s.src = "\/\/relieved-understanding.com\/bsXhVgs.dOGxlg0GYeWtcl\/Te\/mN9QuVZLUMlykEPITlcIyQMdjJcw3\/OfDKEdtkNfz\/I\/yINBz\/cv4kN_Q-";
+        s.async = true;
+        s.referrerPolicy = 'no-referrer-when-downgrade';
+        l.parentNode.insertBefore(s, l);
+        })({})
+        </script>
+    </aside>
+
     <footer class="footer">
         <div class="container">
             <p>&copy; 2026 <strong>Jerusha'Tech</strong>. All rights reserved. Made with <i class="fas fa-heart" style="color: #ef4444;"></i></p>

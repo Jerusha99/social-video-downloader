@@ -307,6 +307,40 @@ body {
     width: 100%;
 }
 
+/* === Right Sidebar Video Ad === */
+.ad-sidebar-right {
+    position: fixed;
+    top: 80px;
+    right: 10px;
+    width: 300px;
+    z-index: 900;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.ad-sidebar-right:empty {
+    display: none;
+}
+
+.ad-sidebar-right iframe,
+.ad-sidebar-right ins,
+.ad-sidebar-right div,
+.ad-sidebar-right a,
+.ad-sidebar-right img {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .ad-sidebar-right {
+        display: none;
+    }
+}
+
 .page-layout .main-content {
     width: 100%;
 }
