@@ -261,11 +261,11 @@ body {
     color: var(--accent);
 }
 
-/* === Ad Banner (centered) === */
+/* === Ad Banner (centered, professional) === */
 .ad-banner-centered {
     text-align: center;
-    margin: 16px auto;
-    min-height: 90px;
+    margin: 20px auto;
+    min-height: 0;
     overflow: visible;
     display: flex;
     justify-content: center;
@@ -273,20 +273,30 @@ body {
     width: 100%;
     max-width: 728px;
     clear: both;
+    padding: 8px 0;
 }
 
 .ad-banner-centered:empty {
     min-height: 0;
+    margin: 0;
+    padding: 0;
 }
 
 .ad-banner-centered iframe,
 .ad-banner-centered ins,
 .ad-banner-centered div,
 .ad-banner-centered a,
-.ad-banner-centered script {
+.ad-banner-centered img {
     display: block;
     margin: 0 auto;
     max-width: 100%;
+}
+
+/* Responsive ad sizing */
+@media (max-width: 768px) {
+    .ad-banner-centered {
+        max-width: 100%;
+    }
 }
 
 /* === Page Layout === */
