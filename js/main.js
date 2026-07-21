@@ -264,4 +264,9 @@
             }, 3000);
         });
     }
+
+    // === Monetag Service Worker (push notifications) ===
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+    }
 })();
