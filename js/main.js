@@ -38,13 +38,46 @@
         container.appendChild(s);
     }
 
-    // Top grid: 2 slots (HilltopAds only - stable, predictable)
+    // Top grid: 2 slots (HilltopAds - stable)
     loadHilltopAd('ad-banner-top-1', HILLTOP_ADS.banner1);
     loadHilltopAd('ad-banner-top-2', HILLTOP_ADS.banner3);
 
-    // Bottom grid: 2 slots (HilltopAds only - stable, predictable)
+    // Bottom grid: 2 slots (HilltopAds - stable)
     loadHilltopAd('ad-banner-bottom-1', HILLTOP_ADS.banner2);
     loadHilltopAd('ad-banner-bottom-2', HILLTOP_ADS.banner4);
+
+    // Bottom grid slots 3 & 4: Capture Monetag auto-injected ads
+    var MONETAG_SLOTS = ['ad-banner-bottom-3', 'ad-banner-bottom-4'];
+    var monetagSlotIndex = 0;
+
+    function captureMonetagAds() {
+        if (monetagSlotIndex >= MONETAG_SLOTS.length) return;
+
+        var candidates = document.querySelectorAll('body > ins, body > iframe, body > div[id*="zone"], body > div[data-zone], body > div[class*="mngr"], body > div[class*="Monetag"], body > div[style*="z-index: 9999"]');
+
+        candidates.forEach(function (el) {
+            if (monetagSlotIndex >= MONETAG_SLOTS.length) return;
+            if (el.dataset.monetagCaptured) return;
+            if (!el.offsetHeight && !el.offsetWidth && !el.querySelector('iframe, ins, img, video')) return;
+
+            var slot = document.getElementById(MONETAG_SLOTS[monetagSlotIndex]);
+            if (!slot) return;
+
+            el.dataset.monetagCaptured = '1';
+            slot.appendChild(el);
+            monetagSlotIndex++;
+        });
+    }
+
+    setTimeout(captureMonetagAds, 2000);
+    setTimeout(captureMonetagAds, 4000);
+    setTimeout(captureMonetagAds, 6000);
+
+    var _adObserver = new MutationObserver(function () {
+        captureMonetagAds();
+    });
+    _adObserver.observe(document.body, { childList: true, subtree: true });
+    setTimeout(function () { _adObserver.disconnect(); }, 15000);
 
     // Video sidebar (desktop only, fixed overlay)
     loadHilltopAd('sidebar-ad-right', HILLTOP_ADS.video);
