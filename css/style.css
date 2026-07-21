@@ -271,42 +271,16 @@ body {
     justify-content: center;
     align-items: center;
     width: 100%;
+    clear: both;
 }
 
 .ad-banner iframe,
 .ad-banner ins,
-.ad-banner script,
 .ad-banner div,
 .ad-banner a {
     display: block;
     margin: 0 auto;
     max-width: 100%;
-}
-
-/* Center ALL HilltopAds injected content globally */
-body > ins,
-body > iframe,
-body > div[id*="ad"],
-body > div[class*="ad"],
-body > div[style*="position: fixed"],
-body > div[style*="position:fixed"] {
-    display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    text-align: center !important;
-    max-width: 100% !important;
-}
-
-/* Force center any top-placed ad iframe/ins */
-#ad-banner-top ins,
-#ad-banner-top iframe,
-#ad-banner-top div,
-#ad-banner-bottom ins,
-#ad-banner-bottom iframe,
-#ad-banner-bottom div {
-    display: block !important;
-    margin: 0 auto !important;
-    text-align: center !important;
 }
 
 /* === Page Layout (main + right sidebar) === */
@@ -317,14 +291,13 @@ body > div[style*="position:fixed"] {
     margin: 0 auto;
     padding: 0 20px;
     width: 100%;
+    justify-content: center;
 }
 
 .page-layout .main-content {
-    flex: 1;
+    flex: 1 1 0;
     min-width: 0;
     max-width: 820px;
-    margin: 0 auto;
-    padding: 0 20px;
 }
 
 /* === Right Sidebar Video Ad === */
