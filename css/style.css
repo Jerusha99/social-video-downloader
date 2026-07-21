@@ -265,21 +265,48 @@ body {
 .ad-banner {
     text-align: center;
     margin: 16px auto;
-    min-height: 0;
-    overflow: hidden;
+    min-height: 90px;
+    overflow: visible;
     display: flex;
     justify-content: center;
     align-items: center;
-}
-
-.ad-banner:empty {
-    display: none;
+    width: 100%;
 }
 
 .ad-banner iframe,
 .ad-banner ins,
-.ad-banner script {
+.ad-banner script,
+.ad-banner div,
+.ad-banner a {
+    display: block;
+    margin: 0 auto;
     max-width: 100%;
+}
+
+/* Center ALL HilltopAds injected content globally */
+body > ins,
+body > iframe,
+body > div[id*="ad"],
+body > div[class*="ad"],
+body > div[style*="position: fixed"],
+body > div[style*="position:fixed"] {
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    text-align: center !important;
+    max-width: 100% !important;
+}
+
+/* Force center any top-placed ad iframe/ins */
+#ad-banner-top ins,
+#ad-banner-top iframe,
+#ad-banner-top div,
+#ad-banner-bottom ins,
+#ad-banner-bottom iframe,
+#ad-banner-bottom div {
+    display: block !important;
+    margin: 0 auto !important;
+    text-align: center !important;
 }
 
 /* === Page Layout (main + right sidebar) === */

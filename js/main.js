@@ -21,24 +21,25 @@
     var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
     var HILLTOP_VIDEO  = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
 
-    function loadHilltopAd(src) {
+    function loadHilltopAd(containerId, src) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
         var s = document.createElement('script');
         s.src = src;
         s.async = true;
         s.referrerPolicy = 'no-referrer-when-downgrade';
         s.settings = {};
-        var lastScript = document.scripts[document.scripts.length - 1];
-        lastScript.parentNode.insertBefore(s, lastScript);
+        container.appendChild(s);
     }
 
     // Top banner
-    loadHilltopAd(HILLTOP_BANNER1);
+    loadHilltopAd('ad-banner-top', HILLTOP_BANNER1);
 
     // Bottom banner
-    loadHilltopAd(HILLTOP_BANNER2);
+    loadHilltopAd('ad-banner-bottom', HILLTOP_BANNER2);
 
     // Right sidebar video ad (desktop only)
-    loadHilltopAd(HILLTOP_VIDEO);
+    loadHilltopAd('sidebar-ad-right', HILLTOP_VIDEO);
 
     // === POPUNDER (HilltopAds - Download click only) ===
     var form = document.getElementById('downloadForm');
