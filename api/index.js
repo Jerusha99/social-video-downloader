@@ -62,11 +62,104 @@ function detectPlatform(url) {
     return null;
 }
 
+// cobalt.tools API instances (free, no auth)
+const COBALT_INSTANCES = [
+    'https://api.cobalt.tools',
+    'https://cobalt-api.kwiatekmiki.com',
+    'https://api.cobalt.best',
+    'https://co.eepy.today',
+    'https://cobalt.api.timelessnesses.me',
+];
+
+async function fetchYouTubeViaCobalt(url, quality) {
+    for (const instance of COBALT_INSTANCES) {
+        try {
+            const resp = await axios.post(instance + '/', {
+                url,
+                videoQuality: quality || '1080',
+                youtubeVideoCodec: 'h264',
+                filenameStyle: 'pretty',
+            }, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                timeout: 15000,
+            });
+            const data = resp.data;
+            if (data.status === 'tunnel' || data.status === 'redirect') {
+                const tunnelUrl = data.url;
+                const filename = data.filename || 'video.mp4';
+                if (!tunnelUrl) continue;
+                const qualities = ['max', '4320', '2160', '1440', '1080', '720', '480', '360', '240', '144'];
+                const formats = [];
+                const seen = new Set();
+                for (const q of qualities) {
+                    if (seen.has(q)) continue;
+                    seen.add(q);
+                    const label = q === 'max' ? 'Best Quality' : q + 'p';
+                    formats.push({ url: tunnelUrl, label, format: 'mp4', type: 'video', size: 0, cobaltQuality: q, cobaltInstance: instance });
+                }
+                formats.push({ url: tunnelUrl, label: 'Audio Only (MP3)', format: 'mp3', type: 'audio', size: 0, cobaltQuality: 'audio', cobaltInstance: instance });
+                return { title: '', thumbnail: '', duration: '', platform: 'youtube', formats, cobaltReady: true };
+            }
+        } catch (e) { continue; }
+    }
+    return null;
+}
+
+async function cobaltDownload(url, quality) {
+    for (const instance of COBALT_INSTANCES) {
+        try {
+            const resp = await axios.post(instance + '/', {
+                url,
+                videoQuality: quality || '1080',
+                youtubeVideoCodec: 'h264',
+                downloadMode: 'auto',
+                filenameStyle: 'pretty',
+            }, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                timeout: 20000,
+            });
+            const data = resp.data;
+            if (data.status === 'tunnel' || data.status === 'redirect') {
+                return { url: data.url, filename: data.filename || 'video.mp4' };
+            }
+        } catch (e) { continue; }
+    }
+    return null;
+}
+
 async function fetchYouTube(url) {
     const videoId = extractYouTubeId(url);
     if (!videoId) throw new Error('Could not extract YouTube video ID.');
 
-    // Method 1: Piped API (works from cloud IPs, no PoToken needed)
+    // Method 1: cobalt.tools API (best quality, auto-merged MP4)
+    const cobaltResult = await fetchYouTubeViaCobalt(url, 'max');
+    if (cobaltResult && cobaltResult.formats && cobaltResult.formats.length > 0) {
+        // Get metadata from InnerTube
+        try {
+            const videoId = extractYouTubeId(url);
+            const payload = {
+                videoId,
+                context: { client: { hl: 'en', gl: 'US', clientName: 'WEB', clientVersion: '2.20240101.00.00' } },
+            };
+            const metaResp = await axios.post('https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8', payload, { httpsAgent, headers: { 'Content-Type': 'application/json', 'User-Agent': userAgent('desktop') }, timeout: 5000 });
+            const metaData = metaResp.data;
+            if (metaData?.videoDetails) {
+                cobaltResult.title = metaData.videoDetails.title || '';
+                const thumbs = metaData.videoDetails.thumbnail?.thumbnails || [];
+                cobaltResult.thumbnail = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
+                cobaltResult.duration = formatDuration(parseInt(metaData.videoDetails.lengthSeconds || '0', 10));
+            }
+        } catch (e) { /* use empty metadata */ }
+        return cobaltResult;
+    }
+
+    // Method 2: Piped API (works from cloud IPs, no PoToken needed)
     const pipedInstances = [
         'https://pipedapi.kavin.rocks',
         'https://pipedapi.adminforge.de',
@@ -83,7 +176,6 @@ async function fetchYouTube(url) {
             const seen = new Set();
             for (const s of (data.videoStreams || [])) {
                 const ext = (s.format || 'mp4').toLowerCase();
-                if (ext !== 'mp4') continue;
                 const key = s.quality + '_' + ext;
                 if (seen.has(key)) continue;
                 seen.add(key);
@@ -157,12 +249,17 @@ async function fetchYouTube(url) {
                 formats.push({ url: streamUrl, label: displayLabel, format: ext, type, size: parseInt(f.contentLength || '0', 10) || 0 });
             }
             if (formats.length > 0) {
-                formats.sort((a, b) => b.size - a.size);
-                const filtered = formats.filter(f => { const e = (f.format || '').toLowerCase(); return e === 'mp4' || e === 'mp3'; });
+                formats.sort((a, b) => {
+                    const getHeight = (f) => {
+                        const m = (f.label || '').match(/(\d+)p/);
+                        return m ? parseInt(m[1]) : (f.type === 'audio' ? -1 : 0);
+                    };
+                    return getHeight(b) - getHeight(a);
+                });
                 const thumbs = videoDetails.thumbnail?.thumbnails || [];
                 const thumb = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : '';
                 const ytDesc = videoDetails.shortDescription || '';
-                return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats: filtered.length > 0 ? filtered : formats.filter(f => (f.format || '').toLowerCase() === 'mp4'), description: ytDesc.substring(0, 300) };
+                return { title: videoDetails.title || 'Untitled', thumbnail: thumb, duration: formatDuration(parseInt(videoDetails.lengthSeconds || '0', 10)), platform: 'youtube', formats, description: ytDesc.substring(0, 300) };
             }
         } catch (e) { continue; }
     }
@@ -519,7 +616,6 @@ async function fetchWithYtDlp(url, platform) {
         const seen = new Set();
         for (const f of (data.formats || [])) {
             const ext = (f.ext || 'mp4').toLowerCase();
-            if (ext !== 'mp4' && ext !== 'mp3') continue;
             const label = f.format_note || (f.height ? f.height + 'p' : 'audio');
             const type = (f.vcodec && f.vcodec !== 'none') ? 'video' : 'audio';
             const key = label + '_' + ext;
@@ -527,7 +623,10 @@ async function fetchWithYtDlp(url, platform) {
             seen.add(key);
             formats.push({ url: f.url, label: type === 'video' ? label + 'p' : label, format: ext, type, size: f.filesize || f.filesize_approx || 0 });
         }
-        formats.sort((a, b) => b.size - a.size);
+        formats.sort((a, b) => {
+            const getHeight = (f) => { const m = (f.label || '').match(/(\d+)p/); return m ? parseInt(m[1]) : (f.type === 'audio' ? -1 : 0); };
+            return getHeight(b) - getHeight(a);
+        });
         return { title: data.title || 'Untitled', thumbnail: data.thumbnail || '', duration: formatDuration(data.duration || 0), platform: platform || 'unknown', formats };
     } catch (e) { throw new Error('yt-dlp failed: ' + e.message); }
 }
@@ -625,19 +724,23 @@ app.get('/api/download', async (req, res) => {
     const url = req.query.url;
     const platform = req.query.platform || '';
     if (!url) return res.status(400).json({ error: 'url parameter required' });
-    // For YouTube, get fresh URL and 302 redirect (avoids Vercel IP 403 issue)
+    // For YouTube, use cobalt API for merged downloads (any quality)
     if (platform === 'youtube') {
         const originalUrl = req.query.v;
-        const fmtLabel = req.query.fmt;
-        if (originalUrl && fmtLabel) {
+        const fmtLabel = req.query.fmt || '';
+        // Extract numeric quality from label (e.g., "1080p" -> "1080")
+        const qualityMatch = fmtLabel.match(/(\d+)p/);
+        const quality = qualityMatch ? qualityMatch[1] : '1080';
+        if (originalUrl) {
             try {
-                const result = await fetchYouTube(originalUrl);
-                const format = result.formats.find(f => f.label === fmtLabel);
-                if (format && format.url) {
-                    return res.redirect(302, format.url);
+                const cobalt = await cobaltDownload(originalUrl, quality);
+                if (cobalt && cobalt.url) {
+                    res.setHeader('Content-Disposition', 'attachment; filename="' + (cobalt.filename || 'video.mp4') + '"');
+                    return res.redirect(302, cobalt.url);
                 }
             } catch (e) { /* fall through */ }
         }
+        // Fallback: direct redirect to stream URL
         return res.redirect(302, url);
     }
     streamVideo(url, platform || 'tiktok', req, res);

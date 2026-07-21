@@ -107,10 +107,14 @@
         var formatsHtml = '';
 
         if (hasValidFormats) {
-            formatsHtml = formats.filter(function (f) {
-                var ext = (f.format || '').toLowerCase();
-                return ext === 'mp4' || ext === 'mp3';
-            }).map(function (f) {
+            var sorted = formats.slice().sort(function (a, b) {
+                var getQ = function (f) {
+                    var m = (f.label || '').match(/(\d+)p/);
+                    return m ? parseInt(m[1]) : (f.type === 'audio' ? 0 : 1);
+                };
+                return getQ(b) - getQ(a);
+            });
+            formatsHtml = sorted.map(function (f) {
                 if (!f.url) return '';
                 var icon = f.type === 'audio' ? 'fa-music' : 'fa-video';
                 var needsProxy = ['tiktok', 'facebook', 'instagram'].includes(platform);
@@ -139,8 +143,6 @@
 
         if (!formatsHtml) {
             formatsHtml = '<p class="no-video-msg"><i class="fas fa-image"></i> This post does not contain a downloadable video.</p>';
-        } else if (isYoutube) {
-            formatsHtml += '<p class="youtube-hint"><i class="fas fa-info-circle"></i> Use 360p MP4 for best compatibility. Higher qualities may fail due to server limitations.</p>';
         }
 
         var desc = data.description ? '<p class="description">' + escapeHtml(data.description.substring(0, 300)) + '</p>' : '';

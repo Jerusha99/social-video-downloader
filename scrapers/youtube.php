@@ -87,7 +87,6 @@ class Scraper_youtube
         }
 
         usort($formats, fn($a, $b) => $b['size'] <=> $a['size']);
-        $formats = array_values(array_filter($formats, fn($f) => in_array(strtolower($f['format'] ?? ''), ['mp4', 'mp3'])));
 
         return [
             'title'     => $data['title'] ?? 'Untitled',
