@@ -79,6 +79,7 @@ async function fetchYouTubeViaCobalt(url, quality) {
                 videoQuality: quality || '1080',
                 youtubeVideoCodec: 'h264',
                 filenameStyle: 'pretty',
+                alwaysProxy: true,
             }, {
                 headers: {
                     'Accept': 'application/json',
@@ -89,7 +90,6 @@ async function fetchYouTubeViaCobalt(url, quality) {
             const data = resp.data;
             if (data.status === 'tunnel' || data.status === 'redirect') {
                 const tunnelUrl = data.url;
-                const filename = data.filename || 'video.mp4';
                 if (!tunnelUrl) continue;
                 const qualities = ['max', '4320', '2160', '1440', '1080', '720', '480', '360', '240', '144'];
                 const formats = [];
@@ -117,6 +117,7 @@ async function cobaltDownload(url, quality) {
                 youtubeVideoCodec: 'h264',
                 downloadMode: 'auto',
                 filenameStyle: 'pretty',
+                alwaysProxy: true,
             }, {
                 headers: {
                     'Accept': 'application/json',
@@ -728,19 +729,35 @@ app.get('/api/download', async (req, res) => {
     if (platform === 'youtube') {
         const originalUrl = req.query.v;
         const fmtLabel = req.query.fmt || '';
-        // Extract numeric quality from label (e.g., "1080p" -> "1080")
         const qualityMatch = fmtLabel.match(/(\d+)p/);
         const quality = qualityMatch ? qualityMatch[1] : '1080';
         if (originalUrl) {
             try {
                 const cobalt = await cobaltDownload(originalUrl, quality);
                 if (cobalt && cobalt.url) {
-                    res.setHeader('Content-Disposition', 'attachment; filename="' + (cobalt.filename || 'video.mp4') + '"');
-                    return res.redirect(302, cobalt.url);
+                    // Stream the file through our server to avoid 403
+                    try {
+                        const response = await axios({
+                            method: 'GET',
+                            url: cobalt.url,
+                            responseType: 'stream',
+                            timeout: 120000,
+                            headers: { 'User-Agent': userAgent('desktop') },
+                            maxRedirects: 5,
+                        });
+                        if (response.headers['content-type']) res.setHeader('Content-Type', response.headers['content-type']);
+                        if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
+                        res.setHeader('Content-Disposition', 'attachment; filename="' + (cobalt.filename || 'video.mp4') + '"');
+                        res.setHeader('Accept-Ranges', 'bytes');
+                        response.data.pipe(res);
+                        return;
+                    } catch (streamErr) {
+                        // Stream failed, try redirect as fallback
+                        return res.redirect(302, cobalt.url);
+                    }
                 }
             } catch (e) { /* fall through */ }
         }
-        // Fallback: direct redirect to stream URL
         return res.redirect(302, url);
     }
     streamVideo(url, platform || 'tiktok', req, res);
