@@ -26,16 +26,6 @@
         banner4: '\/\/relieved-understanding.com\/boX.VisddqGElz0\/Y-WRcV\/qe\/mt9su\/ZsU\/llkEPCTqcwyQM\/jPcC3UM_DmEAt-NLznILyPNRzrcDw\/NbQk'
     };
 
-    // Monetag zones
-    var MONETAG = {
-        pushHot:       '11364472',
-        vignette:      '11260533',
-        inPagePush:    '11260532',
-        onclick:       '11260531',
-        pushLoud:      '11260535',
-        bannerAuto:    '257815'
-    };
-
     // --- HilltopAds: inject into specific grid containers ---
     function loadHilltopAd(containerId, src) {
         var container = document.getElementById(containerId);
@@ -48,31 +38,16 @@
         container.appendChild(s);
     }
 
-    // Top grid: 2 slots
+    // Top grid: 2 slots (HilltopAds only - stable, predictable)
     loadHilltopAd('ad-banner-top-1', HILLTOP_ADS.banner1);
     loadHilltopAd('ad-banner-top-2', HILLTOP_ADS.banner3);
 
-    // Bottom grid: 4 slots
+    // Bottom grid: 2 slots (HilltopAds only - stable, predictable)
     loadHilltopAd('ad-banner-bottom-1', HILLTOP_ADS.banner2);
     loadHilltopAd('ad-banner-bottom-2', HILLTOP_ADS.banner4);
 
-    // Bottom slots 3 & 4: Monetag vignette + in-page push (auto-format)
-    loadMonetagIn('ad-banner-bottom-3', MONETAG.vignette);
-    loadMonetagIn('ad-banner-bottom-4', MONETAG.inPagePush);
-
     // Video sidebar (desktop only, fixed overlay)
     loadHilltopAd('sidebar-ad-right', HILLTOP_ADS.video);
-
-    function loadMonetagIn(containerId, zoneId) {
-        var container = document.getElementById(containerId);
-        if (!container) return;
-        var s = document.createElement('script');
-        s.src = 'https://quge5.com/88/tag.min.js';
-        s.setAttribute('data-zone', zoneId);
-        s.async = true;
-        s.setAttribute('data-cfasync', 'false');
-        container.appendChild(s);
-    }
 
     // === POPUNDER (HilltopAds - Download click only) ===
     var form = document.getElementById('downloadForm');
