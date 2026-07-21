@@ -17,6 +17,7 @@
     });
 
     // === AD SYSTEM ===
+    // HilltopAds: each URL = 1 ad unit. Different URLs = different ads.
     var HILLTOP_BANNER1 = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
     var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
     var HILLTOP_VIDEO  = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
@@ -32,18 +33,33 @@
         container.appendChild(s);
     }
 
-    // Top banner grid (2 slots)
+    // Top: HilltopAds primary banner
     loadHilltopAd('ad-banner-top-1', HILLTOP_BANNER1);
-    loadHilltopAd('ad-banner-top-2', HILLTOP_BANNER1);
 
-    // Bottom banner grid (4 slots - 2x2)
+    // Top: Monetag zone for 2nd slot
+    loadMonetagIn('ad-banner-top-2', '257815');
+
+    // Bottom: HilltopAds primary banner
     loadHilltopAd('ad-banner-bottom-1', HILLTOP_BANNER2);
-    loadHilltopAd('ad-banner-bottom-2', HILLTOP_BANNER2);
-    loadHilltopAd('ad-banner-bottom-3', HILLTOP_BANNER2);
-    loadHilltopAd('ad-banner-bottom-4', HILLTOP_BANNER2);
 
-    // Right sidebar video ad (desktop only)
+    // Bottom: Monetag zones for extra slots
+    loadMonetagIn('ad-banner-bottom-2', '11364472');
+    loadMonetagIn('ad-banner-bottom-3', '257815');
+    loadMonetagIn('ad-banner-bottom-4', '11364472');
+
+    // Right sidebar video ad
     loadHilltopAd('sidebar-ad-right', HILLTOP_VIDEO);
+
+    function loadMonetagIn(containerId, zoneId) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        var s = document.createElement('script');
+        s.src = 'https://quge5.com/88/tag.min.js';
+        s.setAttribute('data-zone', zoneId);
+        s.async = true;
+        s.dataset.cfasync = 'false';
+        container.appendChild(s);
+    }
 
     // === POPUNDER (HilltopAds - Download click only) ===
     var form = document.getElementById('downloadForm');
