@@ -750,20 +750,16 @@ async function getYoutubeStreamUrl(originalUrl, qualityLabel) {
             if (!data || data.error || data.playabilityStatus?.status !== 'OK') continue;
 
             const streamingData = data.streamingData || {};
-            const allFormats = [...(streamingData.formats || []), ...(streamingData.adaptiveFormats || [])];
-            if (allFormats.length === 0) continue;
 
             // Find best muxed format (has both audio+video)
             const muxed = (streamingData.formats || []).filter(f => f.url && f.qualityLabel);
             if (muxed.length > 0) {
-                // Sort by height, pick closest to target
                 muxed.sort((a, b) => Math.abs((a.height || 0) - targetHeight) - Math.abs((b.height || 0) - targetHeight));
                 return muxed[0].url;
             }
 
-            // No muxed format — use adaptive: find video + audio, merge won't work server-side
-            // Just return the best adaptive video URL (user gets video-only)
-            const adaptive = (streamingData.adaptiveFormats || []).filter(f => f.url && f.qualityLabel);
+            // Adaptive: video-only URL
+            const adaptive = (streamingData.adaptiveFormats || []).filter(f => f.url && f.qualityLabel && f.mimeType && f.mimeType.startsWith('video/'));
             if (adaptive.length > 0) {
                 adaptive.sort((a, b) => Math.abs((a.height || 0) - targetHeight) - Math.abs((b.height || 0) - targetHeight));
                 return adaptive[0].url;
@@ -777,15 +773,14 @@ app.get('/api/download', async (req, res) => {
     const url = req.query.url;
     const platform = req.query.platform || '';
     if (!url) return res.status(400).json({ error: 'url parameter required' });
-    // For YouTube, get fresh URL signed for our server IP, then stream through our server
+    // For YouTube: stream the format URL through our server
     if (platform === 'youtube') {
+        // Method 1: Try fresh InnerTube URL (signed for our IP)
         const originalUrl = req.query.v;
-        const fmtLabel = req.query.fmt || '';
         if (originalUrl) {
             try {
-                const freshUrl = await getYoutubeStreamUrl(originalUrl, fmtLabel);
+                const freshUrl = await getYoutubeStreamUrl(originalUrl, req.query.fmt || '');
                 if (freshUrl) {
-                    // Stream through our server (URL is signed for our IP, so it works)
                     const response = await axios({
                         method: 'GET', url: freshUrl, responseType: 'stream', timeout: 120000,
                         headers: { 'User-Agent': userAgent('desktop'), 'Referer': 'https://www.youtube.com/', 'Origin': 'https://www.youtube.com' },
@@ -798,26 +793,24 @@ app.get('/api/download', async (req, res) => {
                     response.data.pipe(res);
                     return;
                 }
-            } catch (e) { /* fall through */ }
+            } catch (e) { /* fall through to method 2 */ }
         }
-        // Fallback: try cobalt
-        if (originalUrl) {
-            try {
-                const qualityMatch = fmtLabel.match(/(\d+)p/);
-                const quality = qualityMatch ? qualityMatch[1] : '1080';
-                const cobalt = await cobaltDownload(originalUrl, quality);
-                if (cobalt && cobalt.url) {
-                    const response = await axios({ method: 'GET', url: cobalt.url, responseType: 'stream', timeout: 120000, headers: { 'User-Agent': userAgent('desktop') }, maxRedirects: 5 });
-                    if (response.headers['content-type']) res.setHeader('Content-Type', response.headers['content-type']);
-                    if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
-                    res.setHeader('Content-Disposition', 'attachment; filename="' + (cobalt.filename || 'video.mp4') + '"');
-                    res.setHeader('Accept-Ranges', 'bytes');
-                    response.data.pipe(res);
-                    return;
-                }
-            } catch (e) { /* fall through */ }
-        }
-        return res.status(500).json({ error: 'Download failed. Please try a different quality.' });
+        // Method 2: Stream the format URL that was already fetched (may be cobalt tunnel or direct)
+        try {
+            const referers = { youtube: 'https://www.youtube.com/' };
+            const response = await axios({
+                method: 'GET', url, responseType: 'stream', timeout: 120000,
+                headers: { 'User-Agent': userAgent('desktop'), 'Referer': 'https://www.youtube.com/', 'Origin': 'https://www.youtube.com' },
+                maxRedirects: 5,
+            });
+            if (response.headers['content-type']) res.setHeader('Content-Type', response.headers['content-type']);
+            if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
+            res.setHeader('Content-Disposition', 'attachment; filename="video.mp4"');
+            res.setHeader('Accept-Ranges', 'bytes');
+            response.data.pipe(res);
+            return;
+        } catch (e) { /* fall through */ }
+        return res.status(500).json({ error: 'Download failed. The video URL may have expired. Please go back and try again.' });
     }
     streamVideo(url, platform || 'tiktok', req, res);
 });
