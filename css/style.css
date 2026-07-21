@@ -261,95 +261,44 @@ body {
     color: var(--accent);
 }
 
-/* === Ad Banners === */
-.ad-banner {
+/* === Ad Banner (centered) === */
+.ad-banner-centered {
     text-align: center;
-    margin: 0;
+    margin: 16px auto;
     min-height: 90px;
     overflow: visible;
     display: flex;
     justify-content: center;
     align-items: center;
     width: 100%;
+    max-width: 728px;
     clear: both;
 }
 
-.ad-banner iframe,
-.ad-banner ins,
-.ad-banner div,
-.ad-banner a {
+.ad-banner-centered:empty {
+    min-height: 0;
+}
+
+.ad-banner-centered iframe,
+.ad-banner-centered ins,
+.ad-banner-centered div,
+.ad-banner-centered a,
+.ad-banner-centered script {
     display: block;
     margin: 0 auto;
     max-width: 100%;
 }
 
-/* === Ad Grids === */
-.ad-grid {
-    margin: 16px 0;
-    gap: 12px;
-}
-
-/* Top: 2 columns */
-.ad-grid-top {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    max-width: 728px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* Bottom: 2x2 grid */
-.ad-grid-bottom {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    max-width: 728px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-/* === Page Layout (main + right sidebar) === */
+/* === Page Layout === */
 .page-layout {
-    display: flex;
-    gap: 20px;
-    max-width: 1200px;
+    max-width: 820px;
     margin: 0 auto;
     padding: 0 20px;
     width: 100%;
-    justify-content: center;
 }
 
 .page-layout .main-content {
     width: 100%;
-    max-width: 820px;
-    margin: 0 auto;
-}
-
-/* === Right Sidebar Video Ad (overlay, doesn't push content) === */
-.ad-sidebar-right {
-    width: 300px;
-    flex-shrink: 0;
-    position: fixed;
-    top: 100px;
-    right: 10px;
-    z-index: 900;
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-}
-
-.ad-sidebar-right:empty {
-    display: none;
-}
-
-@media (max-width: 1200px) {
-    .ad-sidebar-right {
-        display: none;
-    }
 }
 
 /* === Result === */
@@ -904,20 +853,5 @@ body {
 
     .step {
         min-width: 140px;
-    }
-
-    /* Mobile ad grids: single column, smaller */
-    .ad-grid-top {
-        grid-template-columns: 1fr;
-        max-width: 320px;
-    }
-
-    .ad-grid-bottom {
-        grid-template-columns: 1fr;
-        max-width: 320px;
-    }
-
-    .ad-banner {
-        min-height: 60px;
     }
 }

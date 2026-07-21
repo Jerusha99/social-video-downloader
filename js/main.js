@@ -16,47 +16,11 @@
         });
     });
 
-    // === AD SYSTEM ===
-    // HilltopAds: each URL = 1 unique ad. Use insertBefore (proven working method).
-    var HILLTOP_ADS = [
-        '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy',
-        '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN',
-        '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-',
-        '\/\/relieved-understanding.com\/bOX\/Vas.d-GClT0sYKWUcM\/le\/m\/9PuIZEUFl\/kzPQTZcayZMljycz3ANKDRENtFNYzuIzyBNXzOcw0TNBQe',
-        '\/\/relieved-understanding.com\/boX.VisddqGElz0\/Y-WRcV\/qe\/mt9su\/ZsU\/llkEPCTqcwyQM\/jPcC3UM_DmEAt-NLznILyPNRzrcDw\/NbQk'
-    ];
-
-    function loadHilltopAd(src) {
-        var s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.referrerPolicy = 'no-referrer-when-downgrade';
-        s.settings = {};
-        var lastScript = document.scripts[document.scripts.length - 1];
-        lastScript.parentNode.insertBefore(s, lastScript);
-    }
-
-    // Load all 5 HilltopAds zones (each = 1 unique ad on page)
-    HILLTOP_ADS.forEach(function (url) {
-        loadHilltopAd(url);
-    });
-
-    // === POPUNDER (HilltopAds - Download click only) ===
+    // === Download Form ===
     var form = document.getElementById('downloadForm');
     var input = document.getElementById('urlInput');
     var submitBtn = form ? form.querySelector('.btn-primary') : null;
     var resultContainer = document.getElementById('result');
-    var POPUNDER_URL = 'https://pleased-report.com/bt3OV.0DPo3GpnvsbIm_VjJaZaDV0D3LM/jkIx3yNqjxcT3lLxTec/yJMOjScA2gObD_Ex';
-    var lastPopunder = 0;
-
-    function firePopunder() {
-        if (Date.now() - lastPopunder < 30000) return;
-        lastPopunder = Date.now();
-        try {
-            var w = window.open('about:blank');
-            if (w) { w.location.href = POPUNDER_URL; }
-        } catch (e) {}
-    }
 
     function showCountdown(seconds, onDone) {
         var el = document.createElement('div');
@@ -94,8 +58,6 @@
 
             var oldResult = resultContainer.querySelector('.result');
             if (oldResult) oldResult.remove();
-
-            firePopunder();
 
             submitBtn.disabled = true;
             submitBtn.classList.add('loading');

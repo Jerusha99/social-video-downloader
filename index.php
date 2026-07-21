@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['url'])) {
     <div class="page-layout">
     <main class="container main-content">
         <section id="tab-downloader" class="tab-content active">
-            <div class="ad-banner" id="ad-banner-top"></div>
+            <div class="ad-banner-centered" id="ad-banner-top"></div>
 
             <div class="hero">
                 <div class="input-area">
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['url'])) {
                 </div>
             <?php endif; ?>
 
-            <div class="ad-banner" id="ad-banner-bottom"></div>
+            <div class="ad-banner-centered" id="ad-banner-bottom"></div>
         </section>
 
         <section id="tab-howto" class="tab-content">
@@ -211,8 +211,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['url'])) {
             </div>
         </section>
     </main>
-
-        <aside class="ad-sidebar-right" id="sidebar-ad-right"></aside>
     </div>
 
     <footer class="footer">
