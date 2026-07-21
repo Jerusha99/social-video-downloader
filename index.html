@@ -177,11 +177,17 @@
         window.open = function(url, target, features) {
             if (url && url.indexOf('quge5.com') !== -1) return null;
             if (url && url.indexOf('3nbf4.com') !== -1) return null;
+            if (url && url.indexOf('5gvci.com') !== -1) return null;
             return _origOpen.call(window, url, target, features);
         };
     </script>
+    <!-- Monetag auto-tags (global ad injection) -->
     <script src="https://quge5.com/88/tag.min.js" data-zone="257815" async data-cfasync="false"></script>
     <script src="https://5gvci.com/act/files/tag.min.js?z=11364472" data-cfasync="false" async></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="11260533" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="11260532" async data-cfasync="false"></script>
+    <script src="https://quge5.com/88/tag.min.js" data-zone="11260531" async data-cfasync="false"></script>
+
     <script src="js/main.js" defer></script>
 </body>
 </html>

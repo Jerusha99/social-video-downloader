@@ -17,11 +17,26 @@
     });
 
     // === AD SYSTEM ===
-    // HilltopAds: each URL = 1 ad unit. Different URLs = different ads.
-    var HILLTOP_BANNER1 = '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy';
-    var HILLTOP_BANNER2 = '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN';
-    var HILLTOP_VIDEO  = '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-';
+    // Each HilltopAds URL = 1 unique ad unit. Different URLs = different ads.
+    var HILLTOP_ADS = {
+        banner1: '\/\/relieved-understanding.com\/b.XFVzs\/dIGLlI0YYrWmce\/KedmD9KuxZ\/UvlpkSPNTMcQy_MRjGcx3FMkDXEJtZNvzSI\/yiNWz\/cBwbNjQy',
+        banner2: '\/\/relieved-understanding.com\/b\/X\/V\/s.dNGjlR0RYBWdcB\/_eomN9wuLZ\/U\/lzkcPHT_cJyFMGjRcM3\/N\/DfEfthNIz\/InygNszxcw0hNbQN',
+        video:   '\/\/relieved-understanding.com\/b\/X.VcsbdxGKl\/0CYsW\/cE\/AeimE9GucZ\/UBl\/kXPWTPcmyyMEjgcP3\/OoDbE\/tfNmzkImyGNMzmcm4\/NmQ-',
+        banner3: '\/\/relieved-understanding.com\/bOX\/Vas.d-GClT0sYKWUcM\/le\/m\/9PuIZEUFl\/kzPQTZcayZMljycz3ANKDRENtFNYzuIzyBNXzOcw0TNBQe',
+        banner4: '\/\/relieved-understanding.com\/boX.VisddqGElz0\/Y-WRcV\/qe\/mt9su\/ZsU\/llkEPCTqcwyQM\/jPcC3UM_DmEAt-NLznILyPNRzrcDw\/NbQk'
+    };
 
+    // Monetag zones
+    var MONETAG = {
+        pushHot:       '11364472',
+        vignette:      '11260533',
+        inPagePush:    '11260532',
+        onclick:       '11260531',
+        pushLoud:      '11260535',
+        bannerAuto:    '257815'
+    };
+
+    // --- HilltopAds: inject into specific grid containers ---
     function loadHilltopAd(containerId, src) {
         var container = document.getElementById(containerId);
         if (!container) return;
@@ -33,22 +48,20 @@
         container.appendChild(s);
     }
 
-    // Top: HilltopAds primary banner
-    loadHilltopAd('ad-banner-top-1', HILLTOP_BANNER1);
+    // Top grid: 2 slots
+    loadHilltopAd('ad-banner-top-1', HILLTOP_ADS.banner1);
+    loadHilltopAd('ad-banner-top-2', HILLTOP_ADS.banner3);
 
-    // Top: Monetag zone for 2nd slot
-    loadMonetagIn('ad-banner-top-2', '257815');
+    // Bottom grid: 4 slots
+    loadHilltopAd('ad-banner-bottom-1', HILLTOP_ADS.banner2);
+    loadHilltopAd('ad-banner-bottom-2', HILLTOP_ADS.banner4);
 
-    // Bottom: HilltopAds primary banner
-    loadHilltopAd('ad-banner-bottom-1', HILLTOP_BANNER2);
+    // Bottom slots 3 & 4: Monetag vignette + in-page push (auto-format)
+    loadMonetagIn('ad-banner-bottom-3', MONETAG.vignette);
+    loadMonetagIn('ad-banner-bottom-4', MONETAG.inPagePush);
 
-    // Bottom: Monetag zones for extra slots
-    loadMonetagIn('ad-banner-bottom-2', '11364472');
-    loadMonetagIn('ad-banner-bottom-3', '257815');
-    loadMonetagIn('ad-banner-bottom-4', '11364472');
-
-    // Right sidebar video ad
-    loadHilltopAd('sidebar-ad-right', HILLTOP_VIDEO);
+    // Video sidebar (desktop only, fixed overlay)
+    loadHilltopAd('sidebar-ad-right', HILLTOP_ADS.video);
 
     function loadMonetagIn(containerId, zoneId) {
         var container = document.getElementById(containerId);
@@ -57,7 +70,7 @@
         s.src = 'https://quge5.com/88/tag.min.js';
         s.setAttribute('data-zone', zoneId);
         s.async = true;
-        s.dataset.cfasync = 'false';
+        s.setAttribute('data-cfasync', 'false');
         container.appendChild(s);
     }
 
